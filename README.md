@@ -4,7 +4,20 @@ Your personal stylist – take photos of your clothes and get cute outfit sugges
 
 ## Deploy
 
-### Option 1: Netlify (recommended)
+### Option 1: Cloudflare Pages (recommended)
+
+1. Go to [pages.cloudflare.com](https://pages.cloudflare.com) and sign up (free)
+2. Click **Create a project** → **Connect to Git**
+3. Connect **GitHub** and authorize Cloudflare
+4. Select the `outfit-picker` repo
+5. Build settings:
+   - **Framework preset:** None
+   - **Build command:** (leave empty)
+   - **Build output directory:** `/` (or leave blank)
+6. Click **Save and Deploy** – your site will be at `https://outfit-picker.pages.dev` (or a similar URL)
+7. Optional: Customize the subdomain in **Custom domains**
+
+### Option 2: Netlify
 
 1. Go to [netlify.com](https://www.netlify.com) and sign up (free)
 2. Click **Add new site** → **Import an existing project**
@@ -13,7 +26,7 @@ Your personal stylist – take photos of your clothes and get cute outfit sugges
 5. Click **Deploy** – Netlify gives you a URL like `https://random-name.netlify.app`
 6. Optional: Settings → Domain management → add a custom domain
 
-### Option 2: Vercel
+### Option 3: Vercel
 
 1. Go to [vercel.com](https://vercel.com) and sign up (free)
 2. Click **Add New** → **Project**
@@ -21,7 +34,7 @@ Your personal stylist – take photos of your clothes and get cute outfit sugges
 4. Leave defaults (Framework: Other, root directory: `./`)
 5. Click **Deploy** – Vercel gives you a URL like `https://outfit-picker-xxx.vercel.app`
 
-### Option 3: GitHub Pages
+### Option 4: GitHub Pages
 
 1. Repo → **Settings** → **Pages**
 2. Source: **Deploy from a branch**
