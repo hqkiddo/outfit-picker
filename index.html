@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outfit Picker – Your Personal Stylist</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <div class="app">
+    <!-- ONBOARDING: Welcome -->
+    <section id="screen-welcome" class="screen active">
+      <div class="onboarding-card">
+        <div class="app-icon">✨</div>
+        <h1>Outfit Picker</h1>
+        <p class="tagline">Your personal stylist – cute outfits, every day.</p>
+        <button class="btn-primary" data-next="screen-gender">Get Started</button>
+      </div>
+    </section>
+
+    <!-- ONBOARDING: Gender -->
+    <section id="screen-gender" class="screen">
+      <div class="onboarding-card">
+        <h2>What's your style?</h2>
+        <p class="hint">Helps us suggest outfits that fit you.</p>
+        <div class="gender-options">
+          <button class="option-btn" data-gender="women">Women's</button>
+          <button class="option-btn" data-gender="men">Men's</button>
+          <button class="option-btn" data-gender="unisex">Unisex</button>
+        </div>
+        <button class="btn-secondary" data-next="screen-welcome">Back</button>
+      </div>
+    </section>
+
+    <!-- ONBOARDING: Permissions -->
+    <section id="screen-permissions" class="screen">
+      <div class="onboarding-card">
+        <h2>Permissions</h2>
+        <p class="hint">We need camera access to photograph your clothes and storage for your closet.</p>
+        <ul class="permission-list">
+          <li><span class="perm-icon">📷</span> Camera – to take photos of your clothes</li>
+          <li><span class="perm-icon">💾</span> Storage – to save your closet (local only)</li>
+          <li><span class="perm-icon">📍</span> Location – for weather-aware outfit suggestions</li>
+        </ul>
+        <button class="btn-primary" id="btn-allow-permissions">Allow & Continue</button>
+        <button class="btn-secondary" data-next="screen-gender">Back</button>
+      </div>
+    </section>
+
+    <!-- MAIN APP -->
+    <section id="screen-main" class="screen">
+      <header class="main-header">
+        <h1>Outfit Picker</h1>
+        <nav class="nav-tabs">
+          <button class="nav-tab active" data-tab="closet">Closet</button>
+          <button class="nav-tab" data-tab="outfit">Outfit</button>
+        </nav>
+        <button class="btn-add-corner" id="btn-add-item" title="Add clothing">
+          <span class="add-icon">+</span> Add
+        </button>
+      </header>
+
+      <!-- CLOSET TAB -->
+      <div id="tab-closet" class="tab-content active">
+        <div id="closet-layout" class="closet-layout">
+          <aside id="sidebar" class="sidebar" aria-label="Filter and actions">
+            <div class="sidebar-filters">
+              <button class="sidebar-btn active" data-filter="all">All</button>
+              <button class="sidebar-btn" data-filter="favorites">Favorites</button>
+              <button class="sidebar-btn" data-filter="clean">Clean</button>
+              <button class="sidebar-btn" data-filter="laundry">In laundry</button>
+            </div>
+            <div class="sidebar-batch" id="sidebar-batch" style="display:none;">
+              <button class="btn-small" id="btn-batch-clean" disabled>Mark Clean</button>
+              <button class="btn-small" id="btn-batch-laundry" disabled>Mark Laundry</button>
+              <button class="btn-small" id="btn-cancel-select">Cancel</button>
+            </div>
+            <div class="sidebar-batch" id="sidebar-select-prompt">
+              <button class="btn-small" id="btn-select-mode">Select for batch</button>
+            </div>
+            <button class="sidebar-position-btn" id="btn-sidebar-position" title="Move sidebar">⇄</button>
+          </aside>
+          <main class="closet-main">
+            <div id="closet-grid" class="closet-grid"></div>
+          </main>
+        </div>
+      </div>
+
+      <!-- OUTFIT TAB -->
+      <div id="tab-outfit" class="tab-content">
+        <div id="weather-widget" class="weather-widget">
+          <span id="weather-icon" class="weather-icon">🌤️</span>
+          <div class="weather-info">
+            <span id="weather-temp" class="weather-temp">--°</span>
+            <span id="weather-desc" class="weather-desc">Loading weather…</span>
+            <button class="btn-small" id="btn-refresh-weather" title="Refresh weather">↻</button>
+          </div>
+        </div>
+        <div class="outfit-controls">
+          <label for="style-preset">Style:</label>
+          <select id="style-preset" aria-label="Choose outfit style">
+            <option value="casual">Casual</option>
+            <option value="comfy">Comfy</option>
+            <option value="cute">Cute</option>
+            <option value="school">School</option>
+            <option value="fancy">Fancy</option>
+            <option value="party">Party</option>
+            <option value="sports">Sports Game</option>
+          </select>
+          <button class="btn-primary" id="btn-generate">Generate Outfit</button>
+        </div>
+        <div id="outfit-result" class="outfit-result">
+          <p class="placeholder-text">Pick a style and click Generate to get an outfit!</p>
+        </div>
+        <button class="btn-secondary" id="btn-regenerate" style="display:none;">Try Another Outfit</button>
+        <div class="hair-section">
+          <h3>Suggested Hairstyle</h3>
+          <div id="hair-result" class="hair-result">
+            <p class="placeholder-text">Generate an outfit to get a hair suggestion.</p>
+          </div>
+          <a id="hair-tutorial-link" class="tutorial-link" href="#" target="_blank" rel="noopener" style="display:none;">Watch Tutorial →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADD ITEM MODAL -->
+    <div id="modal-add" class="modal">
+      <div class="modal-content">
+        <h2>Add Clothing Item</h2>
+        <div class="add-form">
+          <div class="camera-preview" id="camera-preview">
+            <video id="camera-video" autoplay playsinline style="display:none;"></video>
+            <div id="camera-placeholder" class="camera-placeholder">
+              <span>📷</span>
+              <p>Take a photo or choose a file</p>
+            </div>
+            <img id="captured-image" alt="Captured" style="display:none;">
+            <div class="camera-controls">
+              <input type="file" id="file-input" accept="image/*" style="display:none;">
+              <button class="btn-small" id="btn-capture">Start Camera</button>
+              <button class="btn-small" id="btn-capture-now" style="display:none;">Capture Photo</button>
+              <button class="btn-small" id="btn-upload">Upload Image</button>
+            </div>
+          </div>
+          <label>
+            Category
+            <select id="item-category" aria-label="Clothing category">
+              <option value="top">Top</option>
+              <option value="bottom">Bottom</option>
+              <option value="dress">Dress / Jumpsuit</option>
+              <option value="outerwear">Outerwear</option>
+              <option value="shoes">Shoes</option>
+              <option value="accessory">Accessory</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select id="item-status" aria-label="Clean or in laundry">
+              <option value="clean">Clean</option>
+              <option value="laundry">In laundry</option>
+            </select>
+          </label>
+          <label>
+            Favorite?
+            <input type="checkbox" id="item-favorite" aria-label="Mark as favorite">
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="btn-cancel-add">Cancel</button>
+          <button class="btn-primary" id="btn-save-item" disabled>Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ITEM DETAIL MODAL -->
+    <div id="modal-item-detail" class="modal">
+      <div class="modal-content">
+        <h2>Item Details</h2>
+        <div id="item-detail-content"></div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="btn-close-detail">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="settings-fab" id="btn-settings" title="Settings">⚙️</div>
+    <div id="modal-settings" class="modal">
+      <div class="modal-content">
+        <h2>Settings</h2>
+        <label class="toggle-row">
+          <input type="checkbox" id="setting-laundry-reminder" checked>
+          <span>Remind me when items have been in laundry for a few days</span>
+        </label>
+        <label class="toggle-row">
+          Days before reminder:
+          <input type="number" id="setting-laundry-days" min="1" max="14" value="3">
+        </label>
+        <div class="modal-actions">
+          <button class="btn-primary" id="btn-close-settings">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="app-footer">© Hayley H.</footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
