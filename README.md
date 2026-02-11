@@ -2,23 +2,28 @@
 
 Your personal stylist – take photos of your clothes and get cute outfit suggestions. Weather-aware.
 
-## Features
+## Deploy
 
-- 📷 Photo your clothes and build a closet
-- 🌤️ Weather-aware outfit suggestions (uses your location)
-- 👗 Style presets: casual, comfy, cute, school, fancy, party, sports
-- 💇 Hair suggestions with YouTube tutorials
-- 🧺 Laundry status (clean / in laundry), batch updates, reminders
-- ⭐ Favorites and filters
+### Option 1: Netlify (recommended)
 
-## Demo
+1. Go to [netlify.com](https://www.netlify.com) and sign up (free)
+2. Click **Add new site** → **Import an existing project**
+3. Connect to **GitHub** and choose the `outfit-picker` repo
+4. Leave settings as-is (build command: none, publish directory: `/` or root)
+5. Click **Deploy** – Netlify gives you a URL like `https://random-name.netlify.app`
+6. Optional: Settings → Domain management → add a custom domain
 
-Live at: **https://hqkiddo.github.io/outfit-picker/**
+### Option 2: Vercel
 
-## Deploy (GitHub Pages)
+1. Go to [vercel.com](https://vercel.com) and sign up (free)
+2. Click **Add New** → **Project**
+3. Import the `outfit-picker` repo from GitHub
+4. Leave defaults (Framework: Other, root directory: `./`)
+5. Click **Deploy** – Vercel gives you a URL like `https://outfit-picker-xxx.vercel.app`
 
-1. Enable GitHub Pages: Settings → Pages → Deploy from branch
-2. Select `main` branch, `/ (root)` folder
-3. Save – site will be at `https://YOUR_USERNAME.github.io/outfit-picker/`
+### Option 3: GitHub Pages
 
-© Hayley H.
+1. Repo → **Settings** → **Pages**
+2. Source: **Deploy from a branch**
+3. Branch: `main`, folder: `/ (root)`
+4. Site: `https://hqkiddo.github.io/outfit-picker/`
