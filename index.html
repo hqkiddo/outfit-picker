@@ -43,7 +43,7 @@
         <p class="hint">We need camera access to photograph your clothes and storage for your closet.</p>
         <ul class="permission-list">
           <li><span class="perm-icon">📷</span> Camera – to take photos of your clothes</li>
-          <li><span class="perm-icon">💾</span> Storage – to save your closet (local only)</li>
+          <li><span class="perm-icon">💾</span> Storage – to save your closet (local; sign in to sync across devices)</li>
           <li><span class="perm-icon">📍</span> Location – for weather-aware outfit suggestions</li>
         </ul>
         <button class="btn-primary" id="btn-allow-permissions">Allow & Continue</button>
@@ -139,11 +139,16 @@
               <p>Take a photo or choose a file</p>
             </div>
             <img id="captured-image" alt="Captured" style="display:none;">
+            <div id="remove-bg-row" class="remove-bg-row" style="display:none;">
+              <button class="btn-small" id="btn-remove-bg" type="button">✨ Remove background</button>
+              <span id="remove-bg-status" class="remove-bg-status"></span>
+            </div>
             <div class="camera-controls">
               <input type="file" id="file-input" accept="image/*" style="display:none;">
               <button class="btn-small" id="btn-capture">Start Camera</button>
               <button class="btn-small" id="btn-capture-now" style="display:none;">Capture Photo</button>
               <button class="btn-small" id="btn-upload">Upload Image</button>
+              <button class="btn-small btn-manual-add" id="btn-add-manual">Add without photo</button>
             </div>
           </div>
           <label>
@@ -187,11 +192,48 @@
       </div>
     </div>
 
-    <!-- SETTINGS: Laundry reminders -->
+    <!-- LOGIN / SIGNUP MODAL -->
+    <div id="modal-auth" class="modal">
+      <div class="modal-content">
+        <h2 id="auth-modal-title">Sign in</h2>
+        <p class="auth-hint">Sign in to sync your closet across devices.</p>
+        <div id="auth-form" class="auth-form">
+          <label>
+            Email
+            <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+          </label>
+          <label>
+            Password
+            <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password">
+          </label>
+          <p id="auth-error" class="auth-error" style="display:none;"></p>
+          <div class="auth-actions">
+            <button class="btn-primary" id="btn-auth-submit">Sign in</button>
+            <button class="btn-secondary" id="btn-auth-switch">Create account</button>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="btn-close-auth">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS: Laundry reminders + Account -->
     <div class="settings-fab" id="btn-settings" title="Settings">⚙️</div>
     <div id="modal-settings" class="modal">
       <div class="modal-content">
         <h2>Settings</h2>
+        <div id="account-section" class="account-section">
+          <h3>Account</h3>
+          <div id="account-logged-out">
+            <p class="account-hint">Sign in to sync your closet across devices.</p>
+            <button class="btn-small" id="btn-open-auth">Sign in</button>
+          </div>
+          <div id="account-logged-in" style="display:none;">
+            <p class="account-email" id="account-email"></p>
+            <button class="btn-small" id="btn-logout">Sign out</button>
+          </div>
+        </div>
         <label class="toggle-row">
           <input type="checkbox" id="setting-laundry-reminder" checked>
           <span>Remind me when items have been in laundry for a few days</span>
@@ -209,6 +251,10 @@
     <footer class="app-footer">© Hayley H.</footer>
   </div>
 
-  <script src="app.js?v=3"></script>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="auth.js"></script>
+  <script src="sync.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

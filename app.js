@@ -1,6 +1,6 @@
 /**
  * Outfit Picker – Your Personal Stylist
- * All data stored in localStorage.
+ * Data stored in localStorage; syncs to cloud when signed in.
  */
 
 // ─── State ─────────────────────────────────────────────────────────────
@@ -21,6 +21,8 @@ const DEFAULT_DATA = {
 let state = { ...DEFAULT_DATA };
 
 // Hair tutorials: style -> { name, youtubeSearch }
+const CATEGORY_ICONS = { top: '👕', bottom: '👖', dress: '👗', outerwear: '🧥', shoes: '👟', accessory: '⌚' };
+
 const HAIR_BY_STYLE = {
   casual: [
     { name: 'Easy messy bun', search: 'easy messy bun tutorial' },
@@ -59,18 +61,31 @@ const HAIR_BY_STYLE = {
   ]
 };
 
-// ─── Init ──────────────────────────────────────────────────────────────
-function init() {
-  loadState();
-  if (!state.onboarded) {
-    showScreen('screen-welcome');
-    setupOnboarding();
-  } else {
-    showScreen('screen-main');
-    setupMainApp();
+// ─── Sync ──────────────────────────────────────────────────────────────
+let syncDebounceTimer = null;
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (_) {}
+  // Debounced cloud sync when logged in
+  if (window.OutfitAuth?.isConfigured?.()) {
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = setTimeout(async () => {
+      const session = await window.OutfitAuth?.getSession?.();
+      if (session?.user && window.OutfitSync) {
+        await window.OutfitSync.saveCloset(state);
+      }
+    }, 500);
   }
 }
 
+async function loadFromCloud() {
+  if (!window.OutfitSync) return null;
+  return window.OutfitSync.fetchCloset();
+}
+
+// ─── Init ──────────────────────────────────────────────────────────────
 function loadState() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -81,10 +96,30 @@ function loadState() {
   } catch (_) {}
 }
 
-function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (_) {}
+async function init() {
+  loadState();
+  if (!state.onboarded) {
+    showScreen('screen-welcome');
+    setupOnboarding();
+  } else {
+    showScreen('screen-main');
+    setupMainApp();
+    setupAuth();
+    // If logged in, fetch cloud and merge
+    if (window.OutfitAuth?.isConfigured?.()) {
+      const session = await window.OutfitAuth.getSession();
+      if (session?.user) {
+        const cloudData = await loadFromCloud();
+        if (cloudData && Object.keys(cloudData).length > 0) {
+          state = { ...DEFAULT_DATA, ...cloudData, settings: { ...DEFAULT_DATA.settings, ...cloudData?.settings } };
+          saveState();
+          if (typeof renderCloset === 'function') renderCloset();
+        } else {
+          saveState(); // Upload local to cloud
+        }
+      }
+    }
+  }
 }
 
 // ─── Screens ───────────────────────────────────────────────────────────
@@ -262,7 +297,7 @@ function renderClosetItem(item) {
       ${item.favorite ? '<span class="item-favorite">⭐</span>' : '<span class="item-favorite" title="Add to favorites">☆</span>'}
       ${item.imageData
         ? `<img src="${item.imageData}" alt="${item.category}">`
-        : '<div class="closet-item-placeholder">👕</div>'}
+        : `<div class="closet-item-placeholder">${CATEGORY_ICONS[item.category] || '👕'}</div>`}
       <div class="item-info">
         <div class="item-category">${item.category}</div>
         <span class="item-status-badge ${item.status}">${item.status === 'clean' ? 'Clean' : 'In laundry'}</span>
@@ -383,6 +418,8 @@ function setupAddItem() {
   document.getElementById('btn-capture')?.addEventListener('click', startCamera);
   document.getElementById('btn-upload')?.addEventListener('click', () => document.getElementById('file-input').click());
   document.getElementById('file-input')?.addEventListener('change', handleFileSelect);
+  document.getElementById('btn-add-manual')?.addEventListener('click', startManualAdd);
+  document.getElementById('btn-remove-bg')?.addEventListener('click', removeBackground);
 }
 
 function openAddModal() {
@@ -390,9 +427,27 @@ function openAddModal() {
   document.getElementById('captured-image').style.display = 'none';
   document.getElementById('captured-image').src = '';
   document.getElementById('camera-placeholder').style.display = 'block';
+  document.getElementById('camera-placeholder').innerHTML = '<span>📷</span><p>Take a photo or choose a file</p>';
   document.getElementById('camera-video').style.display = 'none';
   document.getElementById('btn-save-item').disabled = true;
+  document.getElementById('remove-bg-row').style.display = 'none';
+  document.getElementById('btn-capture').style.display = 'inline-block';
+  document.getElementById('btn-capture-now').style.display = 'none';
   document.getElementById('modal-add').classList.add('active');
+  stopCamera();
+}
+
+function startManualAdd() {
+  currentImageData = null;
+  document.getElementById('captured-image').style.display = 'none';
+  document.getElementById('captured-image').src = '';
+  document.getElementById('camera-placeholder').style.display = 'block';
+  document.getElementById('camera-placeholder').innerHTML = '<span>👕</span><p>Adding without photo – pick category below</p>';
+  document.getElementById('camera-video').style.display = 'none';
+  document.getElementById('remove-bg-row').style.display = 'none';
+  document.getElementById('btn-save-item').disabled = false;
+  document.getElementById('btn-capture').style.display = 'inline-block';
+  document.getElementById('btn-capture-now').style.display = 'none';
   stopCamera();
 }
 
@@ -430,6 +485,11 @@ function stopCamera() {
 document.getElementById('camera-video')?.addEventListener('click', captureFromVideo);
 document.getElementById('btn-capture-now')?.addEventListener('click', captureFromVideo);
 
+function showImageWithRemoveBg() {
+  document.getElementById('remove-bg-row').style.display = 'flex';
+  document.getElementById('remove-bg-status').textContent = '';
+}
+
 function captureFromVideo() {
   const video = document.getElementById('camera-video');
   if (!video.srcObject || !video.videoWidth) return;
@@ -443,6 +503,7 @@ function captureFromVideo() {
   document.getElementById('camera-placeholder').style.display = 'none';
   video.style.display = 'none';
   document.getElementById('btn-save-item').disabled = false;
+  showImageWithRemoveBg();
   stopCamera();
 }
 
@@ -457,10 +518,35 @@ function handleFileSelect(e) {
     document.getElementById('camera-placeholder').style.display = 'none';
     document.getElementById('camera-video').style.display = 'none';
     document.getElementById('btn-save-item').disabled = false;
+    showImageWithRemoveBg();
     stopCamera();
   };
   reader.readAsDataURL(file);
   e.target.value = '';
+}
+
+async function removeBackground() {
+  if (!currentImageData) return;
+  const btn = document.getElementById('btn-remove-bg');
+  const status = document.getElementById('remove-bg-status');
+  btn.disabled = true;
+  status.textContent = 'Removing… (first time may take a minute)';
+  try {
+    const removeBg = (await import('https://esm.sh/@imgly/background-removal')).default;
+    const blob = await removeBg(currentImageData);
+    const reader = new FileReader();
+    reader.onload = () => {
+      currentImageData = reader.result;
+      document.getElementById('captured-image').src = currentImageData;
+      status.textContent = 'Done!';
+      btn.disabled = false;
+    };
+    reader.readAsDataURL(blob);
+  } catch (e) {
+    console.warn('Background removal failed:', e);
+    status.textContent = 'Failed – try again or save as-is';
+    btn.disabled = false;
+  }
 }
 
 function saveItem() {
@@ -640,12 +726,134 @@ function renderOutfit(outfit) {
   const html = outfit.length
     ? `<div class="outfit-items">${outfit.map(p => `
         <div class="outfit-piece">
-          ${p.imageData ? `<img src="${p.imageData}" alt="${p.category}">` : '<div class="closet-item-placeholder">👕</div>'}
+          ${p.imageData ? `<img src="${p.imageData}" alt="${p.category}">` : `<div class="closet-item-placeholder">${CATEGORY_ICONS[p.category] || '👕'}</div>`}
           <div class="piece-label">${p.category}</div>
         </div>
       `).join('')}</div>`
     : '<p class="placeholder-text">Not enough items for this style. Add more clothes!</p>';
   document.getElementById('outfit-result').innerHTML = html;
+}
+
+// ─── Auth ──────────────────────────────────────────────────────────────
+let authMode = 'signin'; // 'signin' | 'signup'
+
+function setupAuth() {
+  const accountSection = document.getElementById('account-section');
+  const loggedOut = document.getElementById('account-logged-out');
+  const loggedIn = document.getElementById('account-logged-in');
+  const accountEmail = document.getElementById('account-email');
+
+  if (!accountSection) return;
+
+  const updateAccountUI = async () => {
+    const configured = window.OutfitAuth?.isConfigured?.();
+    accountSection.style.display = configured ? 'block' : 'none';
+    if (!configured) return;
+
+    const session = await window.OutfitAuth.getSession();
+    if (session?.user) {
+      loggedOut.style.display = 'none';
+      loggedIn.style.display = 'block';
+      accountEmail.textContent = session.user.email;
+    } else {
+      loggedOut.style.display = 'block';
+      loggedIn.style.display = 'none';
+    }
+  };
+
+  document.getElementById('btn-open-auth')?.addEventListener('click', () => openAuthModal('signin'));
+  document.getElementById('btn-logout')?.addEventListener('click', async () => {
+    await window.OutfitAuth?.signOut?.();
+    updateAccountUI();
+  });
+
+  document.getElementById('btn-settings')?.addEventListener('click', updateAccountUI);
+
+  document.getElementById('btn-close-auth')?.addEventListener('click', () => {
+    document.getElementById('modal-auth').classList.remove('active');
+  });
+
+  document.getElementById('btn-auth-submit')?.addEventListener('click', handleAuthSubmit);
+  document.getElementById('btn-auth-switch')?.addEventListener('click', () => {
+    authMode = authMode === 'signin' ? 'signup' : 'signin';
+    updateAuthModal();
+  });
+
+  window.OutfitAuth?.onAuthChange?.(async (event, session) => {
+    updateAccountUI();
+    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user && typeof renderCloset === 'function') {
+      const cloudData = await loadFromCloud();
+      if (cloudData && Object.keys(cloudData).length > 0) {
+        state = { ...DEFAULT_DATA, ...cloudData, settings: { ...DEFAULT_DATA.settings, ...cloudData?.settings } };
+        saveState();
+        renderCloset();
+      } else {
+        saveState(); // Upload local to cloud
+      }
+    }
+  });
+
+  updateAccountUI();
+}
+
+function openAuthModal(mode) {
+  authMode = mode || 'signin';
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-password').value = '';
+  document.getElementById('auth-error').style.display = 'none';
+  updateAuthModal();
+  document.getElementById('modal-auth').classList.add('active');
+}
+
+function updateAuthModal() {
+  const title = document.getElementById('auth-modal-title');
+  const submitBtn = document.getElementById('btn-auth-submit');
+  const switchBtn = document.getElementById('btn-auth-switch');
+  if (authMode === 'signup') {
+    title.textContent = 'Create account';
+    submitBtn.textContent = 'Sign up';
+    switchBtn.textContent = 'Already have an account? Sign in';
+  } else {
+    title.textContent = 'Sign in';
+    submitBtn.textContent = 'Sign in';
+    switchBtn.textContent = 'Create account';
+  }
+}
+
+async function handleAuthSubmit() {
+  const email = document.getElementById('auth-email')?.value?.trim();
+  const password = document.getElementById('auth-password')?.value;
+  const errEl = document.getElementById('auth-error');
+
+  errEl.style.display = 'none';
+  if (!email || !password) {
+    errEl.textContent = 'Please enter email and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    if (authMode === 'signup') {
+      await window.OutfitAuth.signUp(email, password);
+      errEl.textContent = 'Check your email to confirm your account, then sign in.';
+      errEl.style.display = 'block';
+      errEl.style.color = 'var(--success)';
+    } else {
+      await window.OutfitAuth.signIn(email, password);
+      document.getElementById('modal-auth').classList.remove('active');
+      const cloudData = await loadFromCloud();
+      if (cloudData && Object.keys(cloudData).length > 0) {
+        state = { ...DEFAULT_DATA, ...cloudData, settings: { ...DEFAULT_DATA.settings, ...cloudData?.settings } };
+      }
+      saveState();
+      if (typeof renderCloset === 'function') renderCloset();
+      setupAuth();
+    }
+  } catch (e) {
+    errEl.textContent = e?.message || 'Something went wrong.';
+    errEl.style.display = 'block';
+    errEl.style.color = '#c94a4a';
+  }
 }
 
 // ─── Settings ──────────────────────────────────────────────────────────

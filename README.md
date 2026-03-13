@@ -1,6 +1,17 @@
 # Outfit Picker
 
-Your personal stylist – take photos of your clothes and get cute outfit suggestions. Weather-aware.
+Your personal stylist – take photos of your clothes and get cute outfit suggestions. Weather-aware. Sign in to sync your closet across devices.
+
+## Sync across devices (optional)
+
+To enable login and cloud sync:
+
+1. Create a free project at [supabase.com](https://supabase.com)
+2. In Supabase Dashboard → **SQL Editor**, run the contents of `supabase-schema.sql` to create the `closet_data` table
+3. In Supabase Dashboard → **Settings** → **API**, copy your project URL and anon (public) key
+4. Edit `config.js` and replace the placeholder values with your URL and anon key
+
+Your closet will sync when you sign in. Without Supabase configured, the app works locally only.
 
 ## Deploy
 

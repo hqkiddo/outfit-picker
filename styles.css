@@ -658,9 +658,27 @@ body {
 
 .camera-controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
   margin-top: 16px;
+}
+
+.btn-manual-add {
+  border-style: dashed;
+}
+
+.remove-bg-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.remove-bg-status {
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
 #captured-image {
@@ -713,6 +731,72 @@ body {
 
 .settings-fab:hover {
   background: var(--accent-dark);
+}
+
+/* Auth modal */
+.auth-hint {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0 0 20px;
+}
+
+.auth-form label {
+  display: block;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.auth-form input[type="email"],
+.auth-form input[type="password"] {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 1rem;
+}
+
+.auth-error {
+  color: #c94a4a;
+  font-size: 0.9rem;
+  margin: 12px 0;
+}
+
+.auth-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.auth-actions .btn-secondary {
+  margin-top: 0;
+}
+
+/* Account section in settings */
+.account-section {
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.account-section h3 {
+  font-size: 1rem;
+  margin: 0 0 12px;
+}
+
+.account-hint {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0 0 12px;
+}
+
+.account-email {
+  font-size: 0.9rem;
+  margin: 0 0 12px;
+  word-break: break-all;
 }
 
 .app-footer {
