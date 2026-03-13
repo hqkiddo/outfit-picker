@@ -33,6 +33,7 @@ body {
   padding: 0 20px 32px;
 }
 
+/* Screens */
 .screen {
   display: none;
   padding: 24px 0;
@@ -42,6 +43,7 @@ body {
   display: block;
 }
 
+/* Onboarding */
 .onboarding-card {
   background: var(--bg-card);
   border-radius: var(--radius);
@@ -128,6 +130,7 @@ body {
   font-size: 1.5rem;
 }
 
+/* Buttons */
 .btn-primary {
   display: block;
   width: 100%;
@@ -184,6 +187,7 @@ body {
   cursor: not-allowed;
 }
 
+/* Main app */
 .main-header {
   display: flex;
   flex-wrap: wrap;
@@ -257,6 +261,7 @@ body {
   display: block;
 }
 
+/* Closet layout: sidebar + main */
 .closet-layout {
   display: flex;
   gap: 24px;
@@ -444,6 +449,7 @@ body {
   z-index: 1;
 }
 
+/* Weather widget */
 .weather-widget {
   display: flex;
   align-items: center;
@@ -480,6 +486,7 @@ body {
   margin-left: auto;
 }
 
+/* Outfit tab */
 .outfit-controls {
   display: flex;
   flex-wrap: wrap;
@@ -561,6 +568,7 @@ body {
   text-decoration: underline;
 }
 
+/* Modals */
 .modal {
   display: none;
   position: fixed;
