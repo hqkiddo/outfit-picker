@@ -3,6 +3,7 @@
  * All data stored in localStorage.
  */
 
+// ─── State ─────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'outfit-picker-data';
 const DEFAULT_DATA = {
   onboarded: false,
@@ -14,11 +15,12 @@ const DEFAULT_DATA = {
     laundryDays: 3,
     sidebarRight: false
   },
-  weather: null
+  weather: null // { tempC, condition, location, updatedAt }
 };
 
 let state = { ...DEFAULT_DATA };
 
+// Hair tutorials: style -> { name, youtubeSearch }
 const HAIR_BY_STYLE = {
   casual: [
     { name: 'Easy messy bun', search: 'easy messy bun tutorial' },
@@ -57,6 +59,7 @@ const HAIR_BY_STYLE = {
   ]
 };
 
+// ─── Init ──────────────────────────────────────────────────────────────
 function init() {
   loadState();
   if (!state.onboarded) {
@@ -84,12 +87,14 @@ function saveState() {
   } catch (_) {}
 }
 
+// ─── Screens ───────────────────────────────────────────────────────────
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
   if (el) el.classList.add('active');
 }
 
+// ─── Onboarding ────────────────────────────────────────────────────────
 function setupOnboarding() {
   document.querySelector('[data-next="screen-gender"]')?.addEventListener('click', () => showScreen('screen-gender'));
 
@@ -115,13 +120,14 @@ function setupOnboarding() {
     saveState();
     showScreen('screen-main');
     setupMainApp();
-    fetchWeather();
+    fetchWeather(); // Start loading weather
   });
 
   document.querySelector('[data-next="screen-welcome"]')?.addEventListener('click', () => showScreen('screen-welcome'));
   document.querySelector('#screen-permissions [data-next="screen-gender"]')?.addEventListener('click', () => showScreen('screen-gender'));
 }
 
+// ─── Main App ──────────────────────────────────────────────────────────
 function setupMainApp() {
   setupNavTabs();
   setupCloset();
@@ -129,7 +135,7 @@ function setupMainApp() {
   setupOutfit();
   setupSettings();
   renderCloset();
-  fetchWeather();
+  fetchWeather(); // Load weather for outfit suggestions
 }
 
 function setupNavTabs() {
@@ -143,6 +149,7 @@ function setupNavTabs() {
   });
 }
 
+// ─── Closet ────────────────────────────────────────────────────────────
 let selectedIds = new Set();
 let isSelectMode = false;
 let currentFilter = 'all';
@@ -282,7 +289,36 @@ function openItemDetail(id) {
       <p>Status: ${item.status === 'clean' ? 'Clean' : 'In laundry'}</p>
       <p>Favorite: ${item.favorite ? 'Yes' : 'No'}</p>
       ${item.lastWorn ? `<p>Last worn: ${formatDate(item.lastWorn)}</p>` : '<p>Last worn: Never</p>'}
-      <button class="btn-small" id="btn-mark-worn" style="margin-top:12px;">Mark as worn today</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+        <button class="btn-small" id="btn-mark-worn">Mark as worn today</button>
+        <button class="btn-small" id="btn-edit-item">Edit</button>
+      </div>
+      <div id="item-edit-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <label style="display:block;margin-bottom:8px;font-weight:600;">Category</label>
+        <select id="edit-item-category" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;">
+          <option value="top" ${item.category === 'top' ? 'selected' : ''}>Top</option>
+          <option value="bottom" ${item.category === 'bottom' ? 'selected' : ''}>Bottom</option>
+          <option value="dress" ${item.category === 'dress' ? 'selected' : ''}>Dress / Jumpsuit</option>
+          <option value="outerwear" ${item.category === 'outerwear' ? 'selected' : ''}>Outerwear</option>
+          <option value="shoes" ${item.category === 'shoes' ? 'selected' : ''}>Shoes</option>
+          <option value="accessory" ${item.category === 'accessory' ? 'selected' : ''}>Accessory</option>
+        </select>
+        <label style="display:block;margin-bottom:8px;font-weight:600;">Status</label>
+        <select id="edit-item-status" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;">
+          <option value="clean" ${item.status === 'clean' ? 'selected' : ''}>Clean</option>
+          <option value="laundry" ${item.status === 'laundry' ? 'selected' : ''}>In laundry</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input type="checkbox" id="edit-item-favorite" ${item.favorite ? 'checked' : ''}>
+          <span>Favorite</span>
+        </label>
+        <label style="display:block;margin-bottom:8px;font-weight:600;">Change photo</label>
+        <input type="file" id="edit-item-photo" accept="image/*" style="margin-bottom:12px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn-small" id="btn-save-edit">Save changes</button>
+          <button class="btn-small" id="btn-delete-item" style="border-color:#c94a4a;color:#c94a4a;">Delete item</button>
+        </div>
+      </div>
     </div>
   `;
   document.getElementById('modal-item-detail').classList.add('active');
@@ -295,12 +331,48 @@ function openItemDetail(id) {
     renderCloset();
     document.getElementById('modal-item-detail').classList.remove('active');
   });
+
+  content.querySelector('#btn-edit-item')?.addEventListener('click', () => {
+    const editSection = content.querySelector('#item-edit-section');
+    editSection.style.display = editSection.style.display === 'none' ? 'block' : 'none';
+  });
+
+  content.querySelector('#edit-item-photo')?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => { item.imageData = reader.result; };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  });
+
+  content.querySelector('#btn-save-edit')?.addEventListener('click', () => {
+    item.category = content.querySelector('#edit-item-category').value;
+    item.status = content.querySelector('#edit-item-status').value;
+    item.favorite = content.querySelector('#edit-item-favorite').checked;
+    if (item.status === 'laundry') item.laundrySince = item.laundrySince || new Date().toISOString();
+    else item.laundrySince = null;
+    saveState();
+    renderCloset();
+    document.getElementById('modal-item-detail').classList.remove('active');
+  });
+
+  content.querySelector('#btn-delete-item')?.addEventListener('click', () => {
+    if (confirm('Delete this item? This cannot be undone.')) {
+      state.clothes = state.clothes.filter(c => c.id !== item.id);
+      saveState();
+      renderCloset();
+      document.getElementById('modal-item-detail').classList.remove('active');
+    }
+  });
 }
 
 document.getElementById('btn-close-detail')?.addEventListener('click', () => {
   document.getElementById('modal-item-detail').classList.remove('active');
 });
 
+// ─── Add Item ──────────────────────────────────────────────────────────
 let currentImageData = null;
 let cameraStream = null;
 
@@ -410,6 +482,7 @@ function saveItem() {
   closeAddModal();
 }
 
+// ─── Weather ───────────────────────────────────────────────────────────
 const WEATHER_CACHE_MINUTES = 30;
 const WEATHER_ICONS = {
   clear: '☀️',
@@ -492,10 +565,12 @@ function setupWeatherRefresh() {
   document.getElementById('btn-refresh-weather')?.addEventListener('click', () => fetchWeather());
 }
 
+// ─── Outfit Generator ──────────────────────────────────────────────────
 function setupOutfit() {
   setupWeatherRefresh();
   document.getElementById('btn-generate')?.addEventListener('click', generateOutfit);
   document.getElementById('btn-regenerate')?.addEventListener('click', generateOutfit);
+  // Load weather when switching to Outfit tab
   document.querySelector('.nav-tab[data-tab="outfit"]')?.addEventListener('click', () => fetchWeather());
 }
 
@@ -547,10 +622,12 @@ function pickOutfit(items, style, weather) {
     pick('bottom');
   }
 
+  // Weather-aware outerwear
   if (byCategory.outerwear.length > 0) {
-    if (isCold || (isRainy && isCool)) pick('outerwear');
-    else if (isCool && Math.random() > 0.4) pick('outerwear');
-    else if (!isWarm && !isHot && Math.random() > 0.7) pick('outerwear');
+    if (isCold || (isRainy && isCool)) pick('outerwear'); // always add when cold/rainy
+    else if (isCool && Math.random() > 0.4) pick('outerwear'); // likely when cool
+    else if (!isWarm && !isHot && Math.random() > 0.7) pick('outerwear'); // sometimes mild
+    // skip outerwear when warm or hot
   }
 
   pick('shoes');
@@ -571,6 +648,7 @@ function renderOutfit(outfit) {
   document.getElementById('outfit-result').innerHTML = html;
 }
 
+// ─── Settings ──────────────────────────────────────────────────────────
 function setupSettings() {
   document.getElementById('btn-settings')?.addEventListener('click', () => {
     document.getElementById('setting-laundry-reminder').checked = state.settings.laundryReminder;
@@ -585,6 +663,7 @@ function setupSettings() {
   });
 }
 
+// ─── Laundry reminders ─────────────────────────────────────────────────
 function checkLaundryReminders() {
   if (!state.settings.laundryReminder || !state.settings.laundryDays) return;
   const days = state.settings.laundryDays;
