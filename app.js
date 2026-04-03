@@ -64,6 +64,9 @@ const DEFAULT_DATA = {
     /** Vertical offset in px on the try-on figure (positive = down). */
     tryOnLayerNudge: {
       dress: 0, top: 0, bottom: 0, outerwear: 0, shoes: 0, accessory: 0
+    },
+    tryOnLayerNudgeX: {
+      dress: 0, top: 0, bottom: 0, outerwear: 0, shoes: 0, accessory: 0
     }
   },
   weather: null // { tempC, condition, location, updatedAt }
@@ -78,17 +81,23 @@ const MANNEQUIN_SVG = `<svg viewBox="0 0 100 220" xmlns="http://www.w3.org/2000/
 
 const MANUAL_SLOT_ORDER = ['dress', 'top', 'bottom', 'outerwear', 'shoes', 'accessory'];
 
-const TRYON_NUDGE_STEP = 8;
 const TRYON_NUDGE_MAX = 120;
 
 function mergeAppSettings(base, patch) {
   const s = { ...base, ...patch };
   s.tryOnLayerNudge = { ...base.tryOnLayerNudge, ...(patch?.tryOnLayerNudge || {}) };
+  s.tryOnLayerNudgeX = { ...base.tryOnLayerNudgeX, ...(patch?.tryOnLayerNudgeX || {}) };
   return s;
 }
 
 function getTryOnNudge(cat) {
   const o = state.settings.tryOnLayerNudge;
+  if (!o || typeof o[cat] !== 'number' || Number.isNaN(o[cat])) return 0;
+  return Math.max(-TRYON_NUDGE_MAX, Math.min(TRYON_NUDGE_MAX, o[cat]));
+}
+
+function getTryOnNudgeX(cat) {
+  const o = state.settings.tryOnLayerNudgeX;
   if (!o || typeof o[cat] !== 'number' || Number.isNaN(o[cat])) return 0;
   return Math.max(-TRYON_NUDGE_MAX, Math.min(TRYON_NUDGE_MAX, o[cat]));
 }
@@ -1168,6 +1177,8 @@ function setupOutfit() {
     updateTryonModeButtons();
     renderMannequinLayers();
   });
+
+  setupMannequinLayerDrag();
 }
 
 function updateTryonModeButtons() {
@@ -1232,8 +1243,10 @@ function renderMannequinLayers() {
   const pushLayer = (cls, item, catKey) => {
     if (!item?.imageData) return;
     const ny = getTryOnNudge(catKey);
-    const style = ny !== 0 ? ` style="--nudge:${ny}px"` : '';
-    parts.push(`<img class="layer-piece ${cls}" src="${item.imageData}" alt=""${style}>`);
+    const nx = getTryOnNudgeX(catKey);
+    parts.push(
+      `<img class="layer-piece ${cls}" src="${item.imageData}" alt="" draggable="false" data-layer-cat="${catKey}" style="--nudge:${ny}px;--nudge-x:${nx}px">`
+    );
   };
 
   const itemAt = (cat) => {
@@ -1252,6 +1265,98 @@ function renderMannequinLayers() {
   pushLayer('layer-accessory', itemAt('accessory'), 'accessory');
 
   wrap.innerHTML = parts.join('');
+}
+
+/** @type {{ cat: string, startX: number, startY: number, nx: number, ny: number, lastNx: number, lastNy: number, img: HTMLImageElement, pid: number } | null} */
+let mannequinLayerDrag = null;
+
+function setupMannequinLayerDrag() {
+  const wrap = document.getElementById('mannequin-layers');
+  if (!wrap || wrap.dataset.layerDragBound === '1') return;
+  wrap.dataset.layerDragBound = '1';
+
+  const clampN = (v) => Math.max(-TRYON_NUDGE_MAX, Math.min(TRYON_NUDGE_MAX, v));
+
+  const applyPreview = (img, nx, ny) => {
+    img.style.setProperty('--nudge-x', `${nx}px`);
+    img.style.setProperty('--nudge', `${ny}px`);
+  };
+
+  const onDocMove = (e) => {
+    const d = mannequinLayerDrag;
+    if (!d || e.pointerId !== d.pid) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    d.lastNx = clampN(d.nx + dx);
+    d.lastNy = clampN(d.ny + dy);
+    applyPreview(d.img, d.lastNx, d.lastNy);
+  };
+
+  const detachDoc = () => {
+    document.removeEventListener('pointermove', onDocMove);
+    document.removeEventListener('pointerup', onDocUp);
+    document.removeEventListener('pointercancel', onDocCancel);
+  };
+
+  const onDocUp = (e) => {
+    const d = mannequinLayerDrag;
+    if (!d || e.pointerId !== d.pid) return;
+    detachDoc();
+    mannequinLayerDrag = null;
+    try {
+      d.img.releasePointerCapture(d.pid);
+    } catch (_) {}
+    d.img.classList.remove('layer-dragging');
+    if (!state.settings.tryOnLayerNudge) {
+      state.settings.tryOnLayerNudge = { ...DEFAULT_DATA.settings.tryOnLayerNudge };
+    }
+    if (!state.settings.tryOnLayerNudgeX) {
+      state.settings.tryOnLayerNudgeX = { ...DEFAULT_DATA.settings.tryOnLayerNudgeX };
+    }
+    state.settings.tryOnLayerNudge[d.cat] = clampN(d.lastNy);
+    state.settings.tryOnLayerNudgeX[d.cat] = clampN(d.lastNx);
+    saveState();
+  };
+
+  const onDocCancel = (e) => {
+    const d = mannequinLayerDrag;
+    if (!d || e.pointerId !== d.pid) return;
+    detachDoc();
+    mannequinLayerDrag = null;
+    try {
+      d.img.releasePointerCapture(d.pid);
+    } catch (_) {}
+    d.img.classList.remove('layer-dragging');
+    applyPreview(d.img, d.nx, d.ny);
+  };
+
+  wrap.addEventListener('pointerdown', (e) => {
+    const img = e.target.closest('.layer-piece');
+    const cat = img?.getAttribute?.('data-layer-cat');
+    if (!img || !cat) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    const nx = getTryOnNudgeX(cat);
+    const ny = getTryOnNudge(cat);
+    mannequinLayerDrag = {
+      cat,
+      startX: e.clientX,
+      startY: e.clientY,
+      nx,
+      ny,
+      lastNx: nx,
+      lastNy: ny,
+      img,
+      pid: e.pointerId
+    };
+    img.classList.add('layer-dragging');
+    try {
+      img.setPointerCapture(e.pointerId);
+    } catch (_) {}
+    document.addEventListener('pointermove', onDocMove);
+    document.addEventListener('pointerup', onDocUp);
+    document.addEventListener('pointercancel', onDocCancel);
+  });
 }
 
 function renderManualSlots() {
@@ -1274,11 +1379,6 @@ function renderManualSlots() {
           <div class="manual-slot-preview">${preview}</div>
           <span class="swipe-hint-side">Swipe or arrows · dress OR top+bottom</span>
         </div>
-        <div class="manual-slot-nudge" title="Move this piece on the figure (higher or lower)">
-          <span class="nudge-mini-label">Move</span>
-          <button type="button" class="btn-small manual-nudge" data-cat="${cat}" data-dir="-1" aria-label="Move piece up">▲</button>
-          <button type="button" class="btn-small manual-nudge" data-cat="${cat}" data-dir="1" aria-label="Move piece down">▼</button>
-        </div>
         <div class="manual-slot-arrows">
           <button type="button" class="btn-small manual-prev" data-cat="${cat}" aria-label="Previous">◀</button>
           <button type="button" class="btn-small manual-next" data-cat="${cat}" aria-label="Next">▶</button>
@@ -1286,21 +1386,6 @@ function renderManualSlots() {
       </div>`;
   }).join('');
 
-  host.querySelectorAll('.manual-nudge').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const cat = btn.dataset.cat;
-      const dir = +(btn.dataset.dir || 0);
-      if (!cat || !dir) return;
-      if (!state.settings.tryOnLayerNudge) {
-        state.settings.tryOnLayerNudge = { ...DEFAULT_DATA.settings.tryOnLayerNudge };
-      }
-      const cur = getTryOnNudge(cat);
-      const next = Math.max(-TRYON_NUDGE_MAX, Math.min(TRYON_NUDGE_MAX, cur + dir * TRYON_NUDGE_STEP));
-      state.settings.tryOnLayerNudge[cat] = next;
-      saveState();
-      renderMannequinLayers();
-    });
-  });
   host.querySelectorAll('.manual-prev').forEach(btn => {
     btn.addEventListener('click', () => {
       cycleManualPick(btn.dataset.cat, -1);

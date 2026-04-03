@@ -703,6 +703,15 @@ body {
   max-height: none;
   backface-visibility: hidden;
   filter: drop-shadow(-6px 10px 14px rgba(45, 42, 38, 0.25)) drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.15));
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.mannequin-layers .layer-piece.layer-dragging {
+  cursor: grabbing;
 }
 
 /* Feet — keep at the very bottom */
@@ -711,7 +720,7 @@ body {
   width: 36%;
   max-height: 22%;
   z-index: 2;
-  transform: translateX(-50%) translateY(var(--nudge, 0px)) translateZ(10px) rotateY(4deg);
+  transform: translateX(calc(-50% + var(--nudge-x, 0px))) translateY(var(--nudge, 0px)) translateZ(10px) rotateY(4deg);
   transform-origin: center bottom;
 }
 
@@ -721,7 +730,7 @@ body {
   width: 40%;
   max-height: 46%;
   z-index: 3;
-  transform: translateX(-50%) translateY(var(--nudge, 0px)) translateZ(24px) rotateY(2deg);
+  transform: translateX(calc(-50% + var(--nudge-x, 0px))) translateY(var(--nudge, 0px)) translateZ(24px) rotateY(2deg);
   transform-origin: center bottom;
 }
 
@@ -731,7 +740,7 @@ body {
   width: 38%;
   max-height: 34%;
   z-index: 4;
-  transform: translateX(-50%) translateY(var(--nudge, 0px)) translateZ(38px) rotateY(-3deg);
+  transform: translateX(calc(-50% + var(--nudge-x, 0px))) translateY(var(--nudge, 0px)) translateZ(38px) rotateY(-3deg);
   transform-origin: center top;
 }
 
@@ -743,7 +752,7 @@ body {
   height: auto;
   max-height: none;
   z-index: 3;
-  transform: translateX(-50%) translateY(var(--nudge, 0px)) translateZ(30px) rotateY(1deg);
+  transform: translateX(calc(-50% + var(--nudge-x, 0px))) translateY(var(--nudge, 0px)) translateZ(30px) rotateY(1deg);
   transform-origin: center top;
 }
 
@@ -753,7 +762,7 @@ body {
   width: 42%;
   max-height: 42%;
   z-index: 5;
-  transform: translateX(-50%) translateY(var(--nudge, 0px)) translateZ(52px) rotateY(-5deg);
+  transform: translateX(calc(-50% + var(--nudge-x, 0px))) translateY(var(--nudge, 0px)) translateZ(52px) rotateY(-5deg);
   transform-origin: center top;
 }
 
@@ -762,7 +771,7 @@ body {
   width: 22%;
   max-height: 16%;
   z-index: 6;
-  transform: translateX(-50%) translateY(var(--nudge, 0px)) translateZ(64px) rotateY(-6deg);
+  transform: translateX(calc(-50% + var(--nudge-x, 0px))) translateY(var(--nudge, 0px)) translateZ(64px) rotateY(-6deg);
   transform-origin: center top;
 }
 
@@ -807,37 +816,9 @@ body {
   letter-spacing: 0.06em;
   color: var(--text-muted);
   font-weight: 700;
-  width: 64px;
+  width: 72px;
   flex-shrink: 0;
   align-self: center;
-}
-
-.manual-slot-nudge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  flex-shrink: 0;
-  padding: 0 4px;
-  border-left: 1px solid var(--border);
-}
-
-.nudge-mini-label {
-  font-size: 0.58rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  font-weight: 700;
-  line-height: 1;
-}
-
-.manual-slot-nudge .manual-nudge {
-  padding: 2px 6px;
-  min-width: 32px;
-  min-height: 28px;
-  font-size: 0.7rem;
-  line-height: 1;
 }
 
 .manual-slot-preview {
