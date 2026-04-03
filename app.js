@@ -842,8 +842,11 @@ function handleFileSelect(e) {
 }
 
 async function applyRemoveBackgroundFromDataUrl(dataUrl) {
-  const removeBg = (await import('https://esm.sh/@imgly/background-removal')).default;
-  const blob = await removeBg(dataUrl);
+  const { removeBackground } = await import('https://esm.sh/@imgly/background-removal@1.7.0');
+  const blob = await removeBackground(dataUrl, {
+    device: 'cpu',
+    proxyToWorker: false
+  });
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('read failed'));
