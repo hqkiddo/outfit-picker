@@ -1586,10 +1586,6 @@ function setupAuth() {
 function syncAuthModalSupabaseState() {
   const configured = window.OutfitAuth?.isConfigured?.();
   const notice = document.getElementById('auth-config-notice');
-  const email = document.getElementById('auth-email');
-  const password = document.getElementById('auth-password');
-  const submitBtn = document.getElementById('btn-auth-submit');
-  const switchBtn = document.getElementById('btn-auth-switch');
   if (notice) {
     if (configured) {
       notice.style.display = 'none';
@@ -1597,14 +1593,9 @@ function syncAuthModalSupabaseState() {
     } else {
       notice.style.display = 'block';
       notice.innerHTML =
-        'Cloud sign-in is not wired up yet. Copy <code>config.example.js</code> to <code>config.js</code>, then set your Supabase <strong>Project URL</strong> and <strong>anon key</strong> from the dashboard (Settings → API). Reload the app and try again.';
+        'To sync across devices, copy <code>config.example.js</code> to <code>config.js</code> and set your Supabase <strong>Project URL</strong> and <strong>anon key</strong> (Dashboard → Settings → API), then reload. You can still fill this form now; sign-in will work after config is saved.';
     }
   }
-  const disabled = !configured;
-  if (email) email.disabled = disabled;
-  if (password) password.disabled = disabled;
-  if (submitBtn) submitBtn.disabled = disabled;
-  if (switchBtn) switchBtn.disabled = disabled;
 }
 
 function openAuthModal(mode) {
@@ -1639,8 +1630,16 @@ async function handleAuthSubmit() {
   const errEl = document.getElementById('auth-error');
 
   errEl.style.display = 'none';
+  errEl.style.color = '#c94a4a';
   if (!email || !password) {
     errEl.textContent = 'Please enter email and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  if (!window.OutfitAuth?.isConfigured?.()) {
+    errEl.textContent =
+      'Supabase is not configured yet. Add config.js with your project URL and anon key, reload the page, then try again.';
     errEl.style.display = 'block';
     return;
   }
