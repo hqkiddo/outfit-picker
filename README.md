@@ -9,8 +9,13 @@ To enable login and cloud sync:
 1. Create a free project at [supabase.com](https://supabase.com)
 2. In Supabase Dashboard → **SQL Editor**, run the contents of `supabase-schema.sql` to create the `closet_data` table
 3. In Supabase Dashboard → **Settings** → **API**, copy your project URL and anon (public) key (a long string — never use the `service_role` secret in the browser)
-4. Edit `config.js` in this repo and replace both placeholder values with your URL and anon key
-5. **Important for hosting:** commit and push `config.js`. Your live site loads `/config.js` from the deployed files — until you deploy real values, sign-in will show “not configured.”
+4. Choose **one** way to supply credentials to the deployed site:
+
+   **A – Environment variables (recommended for GitHub + Cloudflare Pages)**  
+   You do **not** need to commit secrets. In [Supabase](https://supabase.com/dashboard/project/_/settings/api) copy **Project URL** and the **`anon` `public`** key.
+
+   **B – Edit `config.js` in the repo**  
+   Replace both placeholders with your URL and anon key, then commit and push so the host serves that file.
 
 Your closet will sync when you sign in. Without Supabase configured, the app works locally only.
 
@@ -22,13 +27,16 @@ Your closet will sync when you sign in. Without Supabase configured, the app wor
 2. Click **Create a project** → **Connect to Git**
 3. Connect **GitHub** and authorize Cloudflare
 4. Select the `outfit-picker` repo
-5. Build settings:
+5. **Settings** → **Environment variables** (Production, and Preview if you want):
+   - `SUPABASE_URL` = your project URL, e.g. `https://abcdefgh.supabase.co`
+   - `SUPABASE_ANON_KEY` = the long **anon public** key (not `service_role`)
+6. **Settings** → **Builds & deployments** → **Build configuration**:
    - **Framework preset:** None
-   - **Build command:** (leave empty)
-   - **Build output directory:** `/` (or leave blank)
-6. Click **Save and Deploy** – your site will be at `https://outfit-picker.pages.dev` (or a similar URL)
-7. Put your Supabase URL and **anon** key in `config.js`, **commit and push** to `main`, and wait for the automatic redeploy — then sign-in works on the live URL
-8. Optional: Customize the subdomain in **Custom domains**
+   - **Build command:** `node scripts/write-config.mjs`
+   - **Build output directory:** `/` (root)
+7. Save, then **Retry deployment** (or push an empty commit). At build time, `config.js` is generated from those variables and sign-in works after deploy.
+8. **Alternative:** skip the build command and commit a real `config.js` instead (option B above).
+9. Optional: **Custom domains**
 
 ### Option 2: Netlify
 
