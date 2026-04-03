@@ -1498,16 +1498,21 @@ async function refreshAuthUI() {
 
   const configured = window.OutfitAuth?.isConfigured?.();
   accountSection.style.display = configured ? 'block' : 'none';
-  if (headerAuth) {
-    if (!configured) {
-      headerAuth.style.display = 'none';
-    } else {
+
+  if (!configured) {
+    if (headerAuth) {
       headerAuth.style.display = 'inline-block';
+      headerAuth.textContent = 'Log in / Sign up';
+      headerAuth.setAttribute(
+        'aria-label',
+        'Log in or sign up — add Supabase in config.js if sync is not set up yet'
+      );
     }
+    return;
   }
-  if (!configured) return;
 
   const session = await window.OutfitAuth.getSession();
+  if (headerAuth) headerAuth.style.display = 'inline-block';
   if (session?.user) {
     loggedOut.style.display = 'none';
     loggedIn.style.display = 'block';
@@ -1533,7 +1538,10 @@ function setupAuth() {
     window.__opAuthSetup = true;
     document.getElementById('btn-open-auth')?.addEventListener('click', () => openAuthModal('signin'));
     document.getElementById('btn-header-auth')?.addEventListener('click', async () => {
-      if (!window.OutfitAuth?.isConfigured?.()) return;
+      if (!window.OutfitAuth?.isConfigured?.()) {
+        openAuthModal('signin');
+        return;
+      }
       const session = await window.OutfitAuth.getSession();
       if (session?.user) {
         refreshProfilesUI();
@@ -1575,12 +1583,37 @@ function setupAuth() {
   refreshAuthUI();
 }
 
+function syncAuthModalSupabaseState() {
+  const configured = window.OutfitAuth?.isConfigured?.();
+  const notice = document.getElementById('auth-config-notice');
+  const email = document.getElementById('auth-email');
+  const password = document.getElementById('auth-password');
+  const submitBtn = document.getElementById('btn-auth-submit');
+  const switchBtn = document.getElementById('btn-auth-switch');
+  if (notice) {
+    if (configured) {
+      notice.style.display = 'none';
+      notice.textContent = '';
+    } else {
+      notice.style.display = 'block';
+      notice.innerHTML =
+        'Cloud sign-in is not wired up yet. Copy <code>config.example.js</code> to <code>config.js</code>, then set your Supabase <strong>Project URL</strong> and <strong>anon key</strong> from the dashboard (Settings → API). Reload the app and try again.';
+    }
+  }
+  const disabled = !configured;
+  if (email) email.disabled = disabled;
+  if (password) password.disabled = disabled;
+  if (submitBtn) submitBtn.disabled = disabled;
+  if (switchBtn) switchBtn.disabled = disabled;
+}
+
 function openAuthModal(mode) {
   authMode = mode || 'signin';
   document.getElementById('auth-email').value = '';
   document.getElementById('auth-password').value = '';
   document.getElementById('auth-error').style.display = 'none';
   updateAuthModal();
+  syncAuthModalSupabaseState();
   document.getElementById('modal-auth').classList.add('active');
 }
 
@@ -1597,6 +1630,7 @@ function updateAuthModal() {
     submitBtn.textContent = 'Sign in';
     switchBtn.textContent = 'Create account';
   }
+  syncAuthModalSupabaseState();
 }
 
 async function handleAuthSubmit() {
