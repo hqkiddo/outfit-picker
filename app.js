@@ -13,7 +13,9 @@ const DEFAULT_DATA = {
   settings: {
     laundryReminder: true,
     laundryDays: 3,
-    sidebarRight: false
+    sidebarRight: false,
+    tryOnPhoto: null, // base64 portrait for try-on
+    tryOnUseMannequin: true // false = use tryOnPhoto as base
   },
   weather: null // { tempC, condition, location, updatedAt }
 };
@@ -22,6 +24,13 @@ let state = { ...DEFAULT_DATA };
 
 // Hair tutorials: style -> { name, youtubeSearch }
 const CATEGORY_ICONS = { top: '👕', bottom: '👖', dress: '👗', outerwear: '🧥', shoes: '👟', accessory: '⌚' };
+
+const MANNEQUIN_SVG = `<svg viewBox="0 0 100 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="mg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#e8ddd8"/><stop offset="100%" style="stop-color:#cfc4bf"/></linearGradient></defs><ellipse cx="50" cy="26" rx="20" ry="23" fill="url(#mg)"/><path d="M50 48 L28 60 L22 108 L34 112 L38 78 L42 128 L24 198 L38 204 L50 142 L62 204 L76 198 L58 128 L62 78 L66 112 L78 108 L72 60 Z" fill="url(#mg)" stroke="#c5bab5" stroke-width="0.5"/></svg>`;
+
+const MANUAL_SLOT_ORDER = ['dress', 'top', 'bottom', 'outerwear', 'shoes', 'accessory'];
+
+let outfitMode = 'auto'; // 'auto' | 'manual'
+let manualPicks = { dress: -1, top: -1, bottom: -1, outerwear: -1, shoes: -1, accessory: -1 };
 
 const HAIR_BY_STYLE = {
   casual: [
@@ -180,6 +189,7 @@ function setupNavTabs() {
       tab.classList.add('active');
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       document.getElementById(`tab-${tab.dataset.tab}`)?.classList.add('active');
+      if (tab.dataset.tab === 'outfit' && outfitMode === 'manual') renderManualOutfit();
     });
   });
 }
@@ -280,6 +290,10 @@ function renderCloset() {
       }
     });
   });
+
+  if (outfitMode === 'manual' && document.querySelector('.nav-tab[data-tab="outfit"]')?.classList.contains('active')) {
+    renderManualOutfit();
+  }
 }
 
 function toggleSelect(id) {
@@ -505,6 +519,7 @@ function captureFromVideo() {
   document.getElementById('btn-save-item').disabled = false;
   showImageWithRemoveBg();
   stopCamera();
+  void runAutoRemoveBgAfterCapture();
 }
 
 function handleFileSelect(e) {
@@ -520,9 +535,41 @@ function handleFileSelect(e) {
     document.getElementById('btn-save-item').disabled = false;
     showImageWithRemoveBg();
     stopCamera();
+    void runAutoRemoveBgAfterCapture();
   };
   reader.readAsDataURL(file);
   e.target.value = '';
+}
+
+async function applyRemoveBackgroundFromDataUrl(dataUrl) {
+  const removeBg = (await import('https://esm.sh/@imgly/background-removal')).default;
+  const blob = await removeBg(dataUrl);
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function runAutoRemoveBgAfterCapture() {
+  if (!currentImageData) return;
+  const status = document.getElementById('remove-bg-status');
+  const btn = document.getElementById('btn-remove-bg');
+  document.getElementById('remove-bg-row').style.display = 'flex';
+  btn.disabled = true;
+  status.textContent = 'Removing background… (first time can take a minute)';
+  try {
+    const result = await applyRemoveBackgroundFromDataUrl(currentImageData);
+    currentImageData = result;
+    document.getElementById('captured-image').src = currentImageData;
+    status.textContent = 'Background removed automatically.';
+  } catch (e) {
+    console.warn('Auto background removal failed:', e);
+    status.textContent = 'Could not remove background. Use Retry or save as-is.';
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function removeBackground() {
@@ -530,21 +577,16 @@ async function removeBackground() {
   const btn = document.getElementById('btn-remove-bg');
   const status = document.getElementById('remove-bg-status');
   btn.disabled = true;
-  status.textContent = 'Removing… (first time may take a minute)';
+  status.textContent = 'Removing…';
   try {
-    const removeBg = (await import('https://esm.sh/@imgly/background-removal')).default;
-    const blob = await removeBg(currentImageData);
-    const reader = new FileReader();
-    reader.onload = () => {
-      currentImageData = reader.result;
-      document.getElementById('captured-image').src = currentImageData;
-      status.textContent = 'Done!';
-      btn.disabled = false;
-    };
-    reader.readAsDataURL(blob);
+    const result = await applyRemoveBackgroundFromDataUrl(currentImageData);
+    currentImageData = result;
+    document.getElementById('captured-image').src = currentImageData;
+    status.textContent = 'Done.';
   } catch (e) {
     console.warn('Background removal failed:', e);
-    status.textContent = 'Failed – try again or save as-is';
+    status.textContent = 'Failed – save as-is or try again.';
+  } finally {
     btn.disabled = false;
   }
 }
@@ -656,8 +698,197 @@ function setupOutfit() {
   setupWeatherRefresh();
   document.getElementById('btn-generate')?.addEventListener('click', generateOutfit);
   document.getElementById('btn-regenerate')?.addEventListener('click', generateOutfit);
-  // Load weather when switching to Outfit tab
-  document.querySelector('.nav-tab[data-tab="outfit"]')?.addEventListener('click', () => fetchWeather());
+  document.querySelector('.nav-tab[data-tab="outfit"]')?.addEventListener('click', () => {
+    fetchWeather();
+    if (outfitMode === 'manual') renderManualOutfit();
+  });
+
+  document.querySelectorAll('.outfit-mode-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.outfitMode;
+      document.querySelectorAll('.outfit-mode-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.outfitMode === mode);
+        b.setAttribute('aria-selected', b.dataset.outfitMode === mode ? 'true' : 'false');
+      });
+      outfitMode = mode;
+      document.getElementById('outfit-auto-panel').style.display = mode === 'auto' ? 'block' : 'none';
+      document.getElementById('outfit-manual-panel').style.display = mode === 'manual' ? 'block' : 'none';
+      if (mode === 'manual') renderManualOutfit();
+    });
+  });
+
+  document.getElementById('btn-tryon-mannequin')?.addEventListener('click', () => {
+    state.settings.tryOnUseMannequin = true;
+    saveState();
+    updateTryonModeButtons();
+    renderMannequinLayers();
+  });
+  document.getElementById('btn-tryon-photo')?.addEventListener('click', () => {
+    if (!state.settings.tryOnPhoto) {
+      document.getElementById('tryon-photo-input')?.click();
+      return;
+    }
+    state.settings.tryOnUseMannequin = false;
+    saveState();
+    updateTryonModeButtons();
+    renderMannequinLayers();
+  });
+  document.getElementById('btn-tryon-upload-photo')?.addEventListener('click', () => document.getElementById('tryon-photo-input')?.click());
+  document.getElementById('tryon-photo-input')?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.settings.tryOnPhoto = reader.result;
+      state.settings.tryOnUseMannequin = false;
+      saveState();
+      updateTryonModeButtons();
+      renderMannequinLayers();
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+  document.getElementById('btn-tryon-clear-photo')?.addEventListener('click', () => {
+    state.settings.tryOnPhoto = null;
+    state.settings.tryOnUseMannequin = true;
+    saveState();
+    updateTryonModeButtons();
+    renderMannequinLayers();
+  });
+}
+
+function updateTryonModeButtons() {
+  const manBtn = document.getElementById('btn-tryon-mannequin');
+  const phBtn = document.getElementById('btn-tryon-photo');
+  const clearBtn = document.getElementById('btn-tryon-clear-photo');
+  const useM = state.settings.tryOnUseMannequin !== false;
+  manBtn?.classList.toggle('active', useM);
+  phBtn?.classList.toggle('active', !useM && !!state.settings.tryOnPhoto);
+  if (clearBtn) clearBtn.style.display = state.settings.tryOnPhoto ? 'inline-block' : 'none';
+}
+
+function cleanByCategory(cat) {
+  return state.clothes.filter(c => c.status === 'clean' && c.category === cat);
+}
+
+function cycleManualPick(cat, delta) {
+  if ((cat === 'top' || cat === 'bottom') && manualPicks.dress >= 0) {
+    manualPicks.dress = -1;
+  }
+  if (cat === 'dress' && (manualPicks.top >= 0 || manualPicks.bottom >= 0)) {
+    manualPicks.top = -1;
+    manualPicks.bottom = -1;
+  }
+
+  const items = cleanByCategory(cat);
+  const n = items.length;
+  if (n === 0) {
+    manualPicks[cat] = -1;
+    return;
+  }
+  let pos = manualPicks[cat] < 0 ? 0 : manualPicks[cat] + 1;
+  pos = (pos + delta + (n + 1)) % (n + 1);
+  manualPicks[cat] = pos === 0 ? -1 : pos - 1;
+}
+
+function renderManualOutfit() {
+  updateTryonModeButtons();
+  const base = document.getElementById('mannequin-base');
+  if (base) {
+    if (!state.settings.tryOnUseMannequin && state.settings.tryOnPhoto) {
+      base.classList.add('has-photo');
+      base.style.backgroundImage = `url(${state.settings.tryOnPhoto})`;
+      base.innerHTML = '';
+    } else {
+      base.classList.remove('has-photo');
+      base.style.backgroundImage = '';
+      base.innerHTML = MANNEQUIN_SVG;
+    }
+  }
+  renderMannequinLayers();
+  renderManualSlots();
+}
+
+function renderMannequinLayers() {
+  const wrap = document.getElementById('mannequin-layers');
+  if (!wrap) return;
+
+  const dressOn = manualPicks.dress >= 0;
+  const parts = [];
+
+  const pushLayer = (cls, item) => {
+    if (!item?.imageData) return;
+    parts.push(`<img class="layer-piece ${cls}" src="${item.imageData}" alt="">`);
+  };
+
+  const itemAt = (cat) => {
+    const items = cleanByCategory(cat);
+    const i = manualPicks[cat];
+    return i >= 0 ? items[i] : null;
+  };
+
+  pushLayer('layer-shoes', itemAt('shoes'));
+  if (dressOn) pushLayer('layer-dress', itemAt('dress'));
+  else {
+    pushLayer('layer-bottom', itemAt('bottom'));
+    pushLayer('layer-top', itemAt('top'));
+  }
+  pushLayer('layer-outer', itemAt('outerwear'));
+  pushLayer('layer-accessory', itemAt('accessory'));
+
+  wrap.innerHTML = parts.join('');
+}
+
+function renderManualSlots() {
+  const host = document.getElementById('manual-slots');
+  if (!host) return;
+
+  host.innerHTML = MANUAL_SLOT_ORDER.map(cat => {
+    const items = cleanByCategory(cat);
+    const idx = manualPicks[cat];
+    const cur = idx >= 0 ? items[idx] : null;
+
+    const preview = cur?.imageData
+      ? `<img src="${cur.imageData}" alt="">`
+      : `<span class="placeholder-emoji">${CATEGORY_ICONS[cat]}</span>`;
+
+    return `
+      <div class="manual-slot-row" data-slot-cat="${cat}">
+        <div class="manual-slot-label">${cat}</div>
+        <div class="manual-slot-swipe" data-swipe-cat="${cat}">
+          <div class="manual-slot-preview">${preview}</div>
+          <span class="swipe-hint-side">Swipe or arrows · dress OR top+bottom</span>
+        </div>
+        <div class="manual-slot-arrows">
+          <button type="button" class="btn-small manual-prev" data-cat="${cat}" aria-label="Previous">◀</button>
+          <button type="button" class="btn-small manual-next" data-cat="${cat}" aria-label="Next">▶</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  host.querySelectorAll('.manual-prev').forEach(btn => {
+    btn.addEventListener('click', () => {
+      cycleManualPick(btn.dataset.cat, -1);
+      renderManualOutfit();
+    });
+  });
+  host.querySelectorAll('.manual-next').forEach(btn => {
+    btn.addEventListener('click', () => {
+      cycleManualPick(btn.dataset.cat, 1);
+      renderManualOutfit();
+    });
+  });
+
+  host.querySelectorAll('.manual-slot-swipe').forEach(el => {
+    let tx = 0;
+    el.addEventListener('touchstart', (e) => { tx = e.changedTouches[0].clientX; }, { passive: true });
+    el.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - tx;
+      if (Math.abs(dx) < 40) return;
+      cycleManualPick(el.dataset.swipeCat, dx < 0 ? 1 : -1);
+      renderManualOutfit();
+    }, { passive: true });
+  });
 }
 
 function generateOutfit() {

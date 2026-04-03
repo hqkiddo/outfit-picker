@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Outfit Picker – Your Personal Stylist</title>
-  <link rel="stylesheet" href="styles.css?v=2">
+  <link rel="stylesheet" href="styles.css?v=3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -100,29 +100,50 @@
             <button class="btn-small" id="btn-refresh-weather" title="Refresh weather">↻</button>
           </div>
         </div>
-        <div class="outfit-controls">
-          <label for="style-preset">Style:</label>
-          <select id="style-preset" aria-label="Choose outfit style">
-            <option value="casual">Casual</option>
-            <option value="comfy">Comfy</option>
-            <option value="cute">Cute</option>
-            <option value="school">School</option>
-            <option value="fancy">Fancy</option>
-            <option value="party">Party</option>
-            <option value="sports">Sports Game</option>
-          </select>
-          <button class="btn-primary" id="btn-generate">Generate Outfit</button>
+        <div class="outfit-mode-tabs" role="tablist">
+          <button type="button" class="outfit-mode-tab active" data-outfit-mode="auto" role="tab" aria-selected="true">Auto generate</button>
+          <button type="button" class="outfit-mode-tab" data-outfit-mode="manual" role="tab" aria-selected="false">Build manually</button>
         </div>
-        <div id="outfit-result" class="outfit-result">
-          <p class="placeholder-text">Pick a style and click Generate to get an outfit!</p>
-        </div>
-        <button class="btn-secondary" id="btn-regenerate" style="display:none;">Try Another Outfit</button>
-        <div class="hair-section">
-          <h3>Suggested Hairstyle</h3>
-          <div id="hair-result" class="hair-result">
-            <p class="placeholder-text">Generate an outfit to get a hair suggestion.</p>
+        <div id="outfit-auto-panel">
+          <div class="outfit-controls">
+            <label for="style-preset">Style:</label>
+            <select id="style-preset" aria-label="Choose outfit style">
+              <option value="casual">Casual</option>
+              <option value="comfy">Comfy</option>
+              <option value="cute">Cute</option>
+              <option value="school">School</option>
+              <option value="fancy">Fancy</option>
+              <option value="party">Party</option>
+              <option value="sports">Sports Game</option>
+            </select>
+            <button class="btn-primary" id="btn-generate">Generate Outfit</button>
           </div>
-          <a id="hair-tutorial-link" class="tutorial-link" href="#" target="_blank" rel="noopener" style="display:none;">Watch Tutorial →</a>
+          <div id="outfit-result" class="outfit-result">
+            <p class="placeholder-text">Pick a style and click Generate to get an outfit!</p>
+          </div>
+          <button class="btn-secondary" id="btn-regenerate" style="display:none;">Try Another Outfit</button>
+          <div class="hair-section">
+            <h3>Suggested Hairstyle</h3>
+            <div id="hair-result" class="hair-result">
+              <p class="placeholder-text">Generate an outfit to get a hair suggestion.</p>
+            </div>
+            <a id="hair-tutorial-link" class="tutorial-link" href="#" target="_blank" rel="noopener" style="display:none;">Watch Tutorial →</a>
+          </div>
+        </div>
+        <div id="outfit-manual-panel" class="outfit-manual-panel" style="display:none;">
+          <p class="manual-hint">Swipe left or right on each row to change the piece, or use the arrows.</p>
+          <div class="tryon-toolbar">
+            <button type="button" class="btn-small tryon-mode-btn active" id="btn-tryon-mannequin" title="Show mannequin">Mannequin</button>
+            <button type="button" class="btn-small tryon-mode-btn" id="btn-tryon-photo" title="Use your photo as the base">My photo</button>
+            <input type="file" id="tryon-photo-input" accept="image/*" hidden>
+            <button type="button" class="btn-small" id="btn-tryon-upload-photo">Upload photo</button>
+            <button type="button" class="btn-small" id="btn-tryon-clear-photo" style="display:none;">Clear photo</button>
+          </div>
+          <div class="mannequin-stage" id="mannequin-stage">
+            <div class="mannequin-base" id="mannequin-base" aria-hidden="true"></div>
+            <div class="mannequin-layers" id="mannequin-layers"></div>
+          </div>
+          <div class="manual-slots" id="manual-slots"></div>
         </div>
       </div>
     </section>
@@ -140,8 +161,8 @@
             </div>
             <img id="captured-image" alt="Captured" style="display:none;">
             <div id="remove-bg-row" class="remove-bg-row" style="display:none;">
-              <button class="btn-small" id="btn-remove-bg" type="button">✨ Remove background</button>
               <span id="remove-bg-status" class="remove-bg-status"></span>
+              <button class="btn-small" id="btn-remove-bg" type="button">Retry remove bg</button>
             </div>
             <div class="camera-controls">
               <input type="file" id="file-input" accept="image/*" style="display:none;">
@@ -255,6 +276,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="auth.js"></script>
   <script src="sync.js"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

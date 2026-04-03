@@ -486,7 +486,236 @@ body {
   margin-left: auto;
 }
 
-/* Outfit tab */
+/* Outfit tab: Auto vs Manual */
+.outfit-mode-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 4px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.outfit-mode-tab {
+  flex: 1;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.2s, color 0.2s;
+}
+
+.outfit-mode-tab.active {
+  background: var(--accent);
+  color: white;
+}
+
+.outfit-manual-panel {
+  margin-bottom: 24px;
+}
+
+.manual-hint {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+.tryon-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tryon-mode-btn.active {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+  background: rgba(232, 165, 152, 0.2);
+}
+
+.mannequin-stage {
+  position: relative;
+  min-height: 360px;
+  max-height: 420px;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #f5f0ee 0%, #ebe4e0 100%);
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+
+.mannequin-base {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mannequin-base svg {
+  height: 92%;
+  max-width: 55%;
+  opacity: 0.55;
+}
+
+.mannequin-base.has-photo {
+  background-size: contain;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-color: #e8e2de;
+}
+
+.mannequin-base.has-photo svg {
+  display: none;
+}
+
+.mannequin-layers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mannequin-layers .layer-piece {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  object-fit: contain;
+  max-height: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+}
+
+.mannequin-layers .layer-shoes {
+  bottom: 6%;
+  width: 40%;
+  z-index: 2;
+}
+
+.mannequin-layers .layer-bottom {
+  bottom: 26%;
+  width: 44%;
+  z-index: 3;
+}
+
+.mannequin-layers .layer-top {
+  top: 26%;
+  width: 40%;
+  z-index: 4;
+}
+
+.mannequin-layers .layer-dress {
+  bottom: 18%;
+  width: 48%;
+  z-index: 3;
+}
+
+.mannequin-layers .layer-outer {
+  top: 20%;
+  width: 46%;
+  z-index: 5;
+}
+
+.mannequin-layers .layer-accessory {
+  top: 6%;
+  width: 24%;
+  z-index: 6;
+}
+
+.manual-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.manual-slot-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+  touch-action: pan-y;
+}
+
+.manual-slot-swipe {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  min-height: 72px;
+  user-select: none;
+}
+
+.manual-slot-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 700;
+  width: 72px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.manual-slot-preview {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 68px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+}
+
+.manual-slot-preview img {
+  max-height: 64px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.manual-slot-preview .placeholder-emoji {
+  font-size: 2rem;
+  opacity: 0.6;
+}
+
+.manual-slot-preview.muted {
+  opacity: 0.45;
+}
+
+.manual-slot-arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+
+.manual-slot-arrows button {
+  padding: 4px 8px;
+  min-width: 36px;
+}
+
+.swipe-hint-side {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .outfit-controls {
   display: flex;
   flex-wrap: wrap;
