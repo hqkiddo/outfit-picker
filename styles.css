@@ -10,8 +10,11 @@
   --success: #7cb87a;
   --laundry: #c9a86c;
   --shadow: 0 4px 20px rgba(45, 42, 38, 0.08);
+  --shadow-3d: 0 12px 28px rgba(45, 42, 38, 0.14), 0 4px 8px rgba(45, 42, 38, 0.08);
+  --shadow-3d-hover: 0 20px 40px rgba(45, 42, 38, 0.18), 0 8px 16px rgba(45, 42, 38, 0.1);
   --radius: 16px;
   --font: "DM Sans", "Segoe UI", system-ui, sans-serif;
+  --perspective-scene: 1100px;
 }
 
 * {
@@ -48,8 +51,16 @@ body {
   background: var(--bg-card);
   border-radius: var(--radius);
   padding: 40px 28px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-3d);
   text-align: center;
+  transform-style: preserve-3d;
+  transform: perspective(var(--perspective-scene)) rotateX(2deg);
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+.onboarding-card:hover {
+  transform: perspective(var(--perspective-scene)) rotateX(0deg) translateZ(8px);
+  box-shadow: var(--shadow-3d-hover);
 }
 
 .app-icon {
@@ -208,7 +219,7 @@ body {
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: var(--accent);
+  background: linear-gradient(145deg, #ebb2a5 0%, var(--accent) 45%, var(--accent-dark) 100%);
   color: white;
   border: none;
   border-radius: 10px;
@@ -216,11 +227,19 @@ body {
   font-size: 0.9rem;
   cursor: pointer;
   margin-left: auto;
-  transition: background 0.2s;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s;
+  box-shadow: 0 4px 0 rgba(180, 100, 88, 0.45), 0 6px 16px rgba(45, 42, 38, 0.12);
 }
 
 .btn-add-corner:hover {
-  background: var(--accent-dark);
+  background: linear-gradient(145deg, #f0beb4 0%, var(--accent-dark) 100%);
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: 0 6px 0 rgba(180, 100, 88, 0.35), 0 10px 22px rgba(45, 42, 38, 0.15);
+}
+
+.btn-add-corner:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(180, 100, 88, 0.5), 0 4px 10px rgba(45, 42, 38, 0.1);
 }
 
 .btn-add-corner .add-icon {
@@ -372,6 +391,8 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 16px;
+  perspective: var(--perspective-scene);
+  perspective-origin: 50% 30%;
 }
 
 .closet-item {
@@ -379,19 +400,24 @@ body {
   background: var(--bg-card);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-3d);
   cursor: pointer;
   border: 2px solid transparent;
-  transition: all 0.2s;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.2s;
 }
 
 .closet-item:hover {
   border-color: var(--accent);
+  transform: translateY(-8px) rotateX(6deg) rotateY(-7deg) translateZ(12px);
+  box-shadow: var(--shadow-3d-hover);
 }
 
 .closet-item.selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(232, 165, 152, 0.3);
+  box-shadow: 0 0 0 2px rgba(232, 165, 152, 0.35), var(--shadow-3d);
+  transform: translateZ(6px);
 }
 
 .closet-item img {
@@ -457,8 +483,10 @@ body {
   padding: 14px 18px;
   background: var(--bg-card);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-3d);
   margin-bottom: 20px;
+  transform: perspective(900px) rotateX(3deg);
+  transform-style: preserve-3d;
 }
 
 .weather-icon {
@@ -494,7 +522,8 @@ body {
   padding: 4px;
   background: var(--bg-card);
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-3d);
+  transform: perspective(800px) rotateX(2deg);
 }
 
 .outfit-mode-tab {
@@ -540,15 +569,48 @@ body {
   background: rgba(232, 165, 152, 0.2);
 }
 
+/* 3D try-on “studio” */
+.mannequin-scene {
+  perspective: var(--perspective-scene);
+  perspective-origin: 50% 38%;
+  margin-bottom: 22px;
+  padding: 8px 12px 20px;
+}
+
 .mannequin-stage {
   position: relative;
   min-height: 360px;
-  max-height: 420px;
+  max-height: 440px;
   border-radius: var(--radius);
-  background: linear-gradient(180deg, #f5f0ee 0%, #ebe4e0 100%);
   overflow: hidden;
-  margin-bottom: 20px;
-  box-shadow: var(--shadow);
+  margin-bottom: 0;
+  box-shadow: var(--shadow-3d), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transform-style: preserve-3d;
+  transform: rotateX(8deg) rotateY(-14deg);
+  transition: transform 0.45s ease;
+  background:
+    radial-gradient(ellipse 95% 75% at 50% 50%, transparent 50%, rgba(45, 42, 38, 0.07) 100%),
+    radial-gradient(ellipse 120% 80% at 50% 0%, rgba(255, 255, 255, 0.65) 0%, transparent 55%),
+    linear-gradient(165deg, #faf6f4 0%, #e8dfd9 45%, #d4cbc4 100%);
+}
+
+.mannequin-scene:hover .mannequin-stage {
+  transform: rotateX(6deg) rotateY(-10deg) translateZ(4px);
+}
+
+.mannequin-stage::before {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 4%;
+  height: 22%;
+  background: radial-gradient(ellipse 70% 45% at 50% 50%, rgba(45, 42, 38, 0.22), transparent 72%);
+  transform: rotateX(82deg);
+  transform-origin: center bottom;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.85;
 }
 
 .mannequin-base {
@@ -558,19 +620,24 @@ body {
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  transform-style: preserve-3d;
+  transform: translateZ(-28px) scale(0.98);
+  z-index: 2;
 }
 
 .mannequin-base svg {
   height: 92%;
   max-width: 55%;
-  opacity: 0.55;
+  opacity: 0.62;
+  filter: drop-shadow(4px 12px 10px rgba(45, 42, 38, 0.2)) drop-shadow(-2px 4px 6px rgba(255, 255, 255, 0.35));
 }
 
 .mannequin-base.has-photo {
   background-size: contain;
   background-position: center bottom;
   background-repeat: no-repeat;
-  background-color: #e8e2de;
+  background-color: transparent;
+  transform: translateZ(-18px) scale(1.02);
 }
 
 .mannequin-base.has-photo svg {
@@ -581,51 +648,59 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  transform-style: preserve-3d;
+  z-index: 4;
 }
 
 .mannequin-layers .layer-piece {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
   object-fit: contain;
   max-height: none;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+  backface-visibility: hidden;
+  filter: drop-shadow(-6px 10px 14px rgba(45, 42, 38, 0.25)) drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.15));
 }
 
 .mannequin-layers .layer-shoes {
   bottom: 6%;
   width: 40%;
   z-index: 2;
+  transform: translateX(-50%) translateZ(10px) rotateY(4deg);
 }
 
 .mannequin-layers .layer-bottom {
   bottom: 26%;
   width: 44%;
   z-index: 3;
+  transform: translateX(-50%) translateZ(24px) rotateY(2deg);
 }
 
 .mannequin-layers .layer-top {
   top: 26%;
   width: 40%;
   z-index: 4;
+  transform: translateX(-50%) translateZ(38px) rotateY(-3deg);
 }
 
 .mannequin-layers .layer-dress {
   bottom: 18%;
   width: 48%;
   z-index: 3;
+  transform: translateX(-50%) translateZ(30px) rotateY(1deg);
 }
 
 .mannequin-layers .layer-outer {
   top: 20%;
   width: 46%;
   z-index: 5;
+  transform: translateX(-50%) translateZ(52px) rotateY(-5deg);
 }
 
 .mannequin-layers .layer-accessory {
   top: 6%;
   width: 24%;
   z-index: 6;
+  transform: translateX(-50%) translateZ(64px) rotateY(-6deg);
 }
 
 .manual-slots {
@@ -641,8 +716,16 @@ body {
   background: var(--bg-card);
   border-radius: 12px;
   padding: 10px 12px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-3d);
   touch-action: pan-y;
+  transform-style: preserve-3d;
+  transform: perspective(1000px) rotateX(2deg);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.manual-slot-row:hover {
+  transform: perspective(1000px) rotateX(0deg) translateY(-2px) translateZ(6px);
+  box-shadow: var(--shadow-3d-hover);
 }
 
 .manual-slot-swipe {
@@ -740,18 +823,27 @@ body {
   background: var(--bg-card);
   border-radius: var(--radius);
   padding: 24px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-3d);
   margin-bottom: 20px;
+  transform: perspective(900px) rotateX(2deg);
+  transform-style: preserve-3d;
 }
 
 .outfit-result .outfit-items {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+  perspective: 900px;
 }
 
 .outfit-result .outfit-piece {
   text-align: center;
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.outfit-result .outfit-piece:hover {
+  transform: translateZ(16px) rotateY(-4deg) rotateX(4deg);
 }
 
 .outfit-result .outfit-piece img {
@@ -759,6 +851,7 @@ body {
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(45, 42, 38, 0.15);
 }
 
 .outfit-result .outfit-piece .piece-label {
@@ -777,7 +870,8 @@ body {
   background: var(--bg-card);
   border-radius: var(--radius);
   padding: 24px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-3d);
+  transform: perspective(800px) rotateX(1.5deg);
 }
 
 .hair-section h3 {
@@ -821,6 +915,9 @@ body {
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: var(--shadow-3d-hover), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  transform: perspective(1200px) rotateX(2deg);
+  transform-style: preserve-3d;
 }
 
 .modal-content h2 {
@@ -1026,6 +1123,35 @@ body {
   font-size: 0.9rem;
   margin: 0 0 12px;
   word-break: break-all;
+}
+
+.profile-switch-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 14px;
+}
+
+.profile-switcher {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 1rem;
+  background: var(--bg-card);
+}
+
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-delete {
+  border-color: #c94a4a;
+  color: #c94a4a;
 }
 
 .app-footer {

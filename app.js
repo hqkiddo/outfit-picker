@@ -4,7 +4,52 @@
  */
 
 // ─── State ─────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'outfit-picker-data';
+const META_KEY = 'outfit-picker-meta';
+const LEGACY_STORAGE_KEY = 'outfit-picker-data';
+
+/** @type {string|null} */
+let activeProfileId = null;
+
+function getProfileStorageKey(profileId) {
+  return `outfit-picker-data-${profileId}`;
+}
+
+function loadProfilesMeta() {
+  try {
+    const raw = localStorage.getItem(META_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return { version: 1, profiles: [], activeProfileId: null };
+}
+
+function saveProfilesMeta(meta) {
+  localStorage.setItem(META_KEY, JSON.stringify(meta));
+}
+
+function migrateProfilesIfNeeded() {
+  let meta = loadProfilesMeta();
+  if (meta.profiles?.length && meta.activeProfileId) {
+    if (!meta.profiles.some(p => p.id === meta.activeProfileId)) {
+      meta.activeProfileId = meta.profiles[0].id;
+      saveProfilesMeta(meta);
+    }
+    activeProfileId = meta.activeProfileId;
+    return;
+  }
+  const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+  const id = crypto.randomUUID();
+  const label = 'Main';
+  if (legacy) {
+    try {
+      localStorage.setItem(getProfileStorageKey(id), legacy);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch (_) {}
+  }
+  meta = { version: 1, profiles: [{ id, label }], activeProfileId: id };
+  saveProfilesMeta(meta);
+  activeProfileId = id;
+}
+
 const DEFAULT_DATA = {
   onboarded: false,
   gender: 'unisex',
@@ -25,7 +70,7 @@ let state = { ...DEFAULT_DATA };
 // Hair tutorials: style -> { name, youtubeSearch }
 const CATEGORY_ICONS = { top: '👕', bottom: '👖', dress: '👗', outerwear: '🧥', shoes: '👟', accessory: '⌚' };
 
-const MANNEQUIN_SVG = `<svg viewBox="0 0 100 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="mg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#e8ddd8"/><stop offset="100%" style="stop-color:#cfc4bf"/></linearGradient></defs><ellipse cx="50" cy="26" rx="20" ry="23" fill="url(#mg)"/><path d="M50 48 L28 60 L22 108 L34 112 L38 78 L42 128 L24 198 L38 204 L50 142 L62 204 L76 198 L58 128 L62 78 L66 112 L78 108 L72 60 Z" fill="url(#mg)" stroke="#c5bab5" stroke-width="0.5"/></svg>`;
+const MANNEQUIN_SVG = `<svg viewBox="0 0 100 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="mg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#f2ebe6"/><stop offset="45%" style="stop-color:#ddd2cc"/><stop offset="100%" style="stop-color:#b8ada8"/></linearGradient><radialGradient id="mh" cx="35%" cy="30%" r="65%"><stop offset="0%" style="stop-color:#fff;stop-opacity:0.5"/><stop offset="100%" style="stop-color:#fff;stop-opacity:0"/></radialGradient></defs><ellipse cx="50" cy="26" rx="20" ry="23" fill="url(#mg)"/><ellipse cx="50" cy="26" rx="20" ry="23" fill="url(#mh)"/><path d="M50 48 L28 60 L22 108 L34 112 L38 78 L42 128 L24 198 L38 204 L50 142 L62 204 L76 198 L58 128 L62 78 L66 112 L78 108 L72 60 Z" fill="url(#mg)" stroke="#a89892" stroke-width="0.4"/><path d="M50 48 L28 60 L22 108 L34 112 L38 78 L42 128 L24 198 L38 204 L50 142 L62 204 L76 198 L58 128 L62 78 L66 112 L78 108 L72 60 Z" fill="url(#mh)" opacity="0.35"/></svg>`;
 
 const MANUAL_SLOT_ORDER = ['dress', 'top', 'bottom', 'outerwear', 'shoes', 'accessory'];
 
@@ -75,9 +120,9 @@ let syncDebounceTimer = null;
 
 function saveState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (!activeProfileId) return;
+    localStorage.setItem(getProfileStorageKey(activeProfileId), JSON.stringify(state));
   } catch (_) {}
-  // Debounced cloud sync when logged in
   if (window.OutfitAuth?.isConfigured?.()) {
     clearTimeout(syncDebounceTimer);
     syncDebounceTimer = setTimeout(async () => {
@@ -94,18 +139,151 @@ async function loadFromCloud() {
   return window.OutfitSync.fetchCloset();
 }
 
+async function hydrateFromCloudIfLoggedIn() {
+  if (!window.OutfitAuth?.isConfigured?.()) return;
+  const session = await window.OutfitAuth.getSession();
+  if (!session?.user) return;
+  const cloudData = await loadFromCloud();
+  if (cloudData && Object.keys(cloudData).length > 0) {
+    state = { ...DEFAULT_DATA, ...cloudData, settings: { ...DEFAULT_DATA.settings, ...cloudData?.settings } };
+    saveState();
+    if (typeof renderCloset === 'function') renderCloset();
+  } else {
+    saveState();
+  }
+}
+
+// ─── Profiles (multiple closets on one device) ─────────────────────────
+function refreshProfilesUI() {
+  const sel = document.getElementById('profile-switcher');
+  const delBtn = document.getElementById('btn-profile-delete');
+  if (!sel) return;
+  const meta = loadProfilesMeta();
+  const esc = (s) => String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;');
+  sel.innerHTML = meta.profiles.map(p =>
+    `<option value="${p.id}" ${p.id === activeProfileId ? 'selected' : ''}>${esc(p.label)}</option>`
+  ).join('');
+  if (delBtn) delBtn.style.display = meta.profiles.length > 1 ? 'inline-block' : 'none';
+}
+
+async function switchToProfile(profileId) {
+  if (!profileId || profileId === activeProfileId) return;
+  saveState();
+  clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = null;
+  if (window.OutfitAuth?.isConfigured?.()) {
+    try {
+      await window.OutfitAuth.signOut();
+    } catch (_) {}
+  }
+  activeProfileId = profileId;
+  const meta = loadProfilesMeta();
+  meta.activeProfileId = profileId;
+  saveProfilesMeta(meta);
+  manualPicks = { dress: -1, top: -1, bottom: -1, outerwear: -1, shoes: -1, accessory: -1 };
+  loadState();
+  selectedIds.clear();
+  isSelectMode = false;
+  const sb = document.getElementById('sidebar-batch');
+  const sp = document.getElementById('sidebar-select-prompt');
+  if (sb) sb.style.display = 'none';
+  if (sp) sp.style.display = 'flex';
+  refreshProfilesUI();
+
+  if (!state.onboarded) {
+    showScreen('screen-welcome');
+    setupOnboarding();
+  } else {
+    showScreen('screen-main');
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.nav-tab[data-tab="closet"]')?.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-closet')?.classList.add('active');
+    setupMainApp();
+    await refreshAuthUI();
+    await hydrateFromCloudIfLoggedIn();
+  }
+  checkLaundryReminders();
+}
+
+async function addProfile() {
+  const label = prompt('Name for this profile (e.g. Partner):', 'Profile');
+  if (label === null) return;
+  const trimmed = label.trim() || 'Profile';
+  const id = crypto.randomUUID();
+  const meta = loadProfilesMeta();
+  meta.profiles.push({ id, label: trimmed });
+  saveProfilesMeta(meta);
+  await switchToProfile(id);
+}
+
+function renameActiveProfile() {
+  const meta = loadProfilesMeta();
+  const p = meta.profiles.find(x => x.id === activeProfileId);
+  if (!p) return;
+  const label = prompt('Rename profile:', p.label);
+  if (label === null) return;
+  p.label = label.trim() || p.label;
+  saveProfilesMeta(meta);
+  refreshProfilesUI();
+}
+
+async function deleteActiveProfile() {
+  const meta = loadProfilesMeta();
+  if (meta.profiles.length <= 1) return;
+  if (!confirm('Delete this profile and all of its closet data on this device? This does not delete a Supabase account.')) return;
+  const id = activeProfileId;
+  try {
+    localStorage.removeItem(getProfileStorageKey(id));
+  } catch (_) {}
+  meta.profiles = meta.profiles.filter(p => p.id !== id);
+  const nextId = meta.profiles[0].id;
+  meta.activeProfileId = nextId;
+  saveProfilesMeta(meta);
+  activeProfileId = nextId;
+  clearTimeout(syncDebounceTimer);
+  if (window.OutfitAuth?.isConfigured?.()) {
+    try {
+      await window.OutfitAuth.signOut();
+    } catch (_) {}
+  }
+  loadState();
+  manualPicks = { dress: -1, top: -1, bottom: -1, outerwear: -1, shoes: -1, accessory: -1 };
+  refreshProfilesUI();
+
+  if (!state.onboarded) {
+    showScreen('screen-welcome');
+    setupOnboarding();
+  } else {
+    showScreen('screen-main');
+    setupMainApp();
+    await refreshAuthUI();
+    await hydrateFromCloudIfLoggedIn();
+  }
+  checkLaundryReminders();
+}
+
 // ─── Init ──────────────────────────────────────────────────────────────
 function loadState() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!activeProfileId) return;
+    const stored = localStorage.getItem(getProfileStorageKey(activeProfileId));
     if (stored) {
       const parsed = JSON.parse(stored);
       state = { ...DEFAULT_DATA, ...parsed, settings: { ...DEFAULT_DATA.settings, ...parsed?.settings } };
+    } else {
+      state = { ...DEFAULT_DATA };
     }
-  } catch (_) {}
+  } catch (_) {
+    state = { ...DEFAULT_DATA };
+  }
 }
 
 async function init() {
+  migrateProfilesIfNeeded();
   loadState();
   if (!state.onboarded) {
     showScreen('screen-welcome');
@@ -114,20 +292,7 @@ async function init() {
     showScreen('screen-main');
     setupMainApp();
     setupAuth();
-    // If logged in, fetch cloud and merge
-    if (window.OutfitAuth?.isConfigured?.()) {
-      const session = await window.OutfitAuth.getSession();
-      if (session?.user) {
-        const cloudData = await loadFromCloud();
-        if (cloudData && Object.keys(cloudData).length > 0) {
-          state = { ...DEFAULT_DATA, ...cloudData, settings: { ...DEFAULT_DATA.settings, ...cloudData?.settings } };
-          saveState();
-          if (typeof renderCloset === 'function') renderCloset();
-        } else {
-          saveState(); // Upload local to cloud
-        }
-      }
-    }
+    await hydrateFromCloudIfLoggedIn();
   }
 }
 
@@ -138,48 +303,69 @@ function showScreen(id) {
   if (el) el.classList.add('active');
 }
 
-// ─── Onboarding ────────────────────────────────────────────────────────
+// ─── Onboarding (single delegated listener — safe when switching profiles) ─
 function setupOnboarding() {
-  document.querySelector('[data-next="screen-gender"]')?.addEventListener('click', () => showScreen('screen-gender'));
-
-  document.querySelectorAll('.option-btn[data-gender]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.option-btn[data-gender]').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      state.gender = btn.dataset.gender;
-      showScreen('screen-permissions');
-    });
-  });
-
-  document.getElementById('btn-allow-permissions')?.addEventListener('click', async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach(t => t.stop());
-      state.permissionsGranted = true;
-    } catch (e) {
-      console.warn('Camera access denied:', e);
-      state.permissionsGranted = false;
+  const app = document.querySelector('.app');
+  if (!app || app.dataset.onboardDeleg === '1') return;
+  app.dataset.onboardDeleg = '1';
+  app.addEventListener('click', async (e) => {
+    const t = e.target;
+    if (t.closest('[data-next="screen-gender"]') && document.getElementById('screen-welcome')?.classList.contains('active')) {
+      showScreen('screen-gender');
+      return;
     }
-    state.onboarded = true;
-    saveState();
-    showScreen('screen-main');
-    setupMainApp();
-    fetchWeather(); // Start loading weather
+    if (t.closest('[data-next="screen-welcome"]') && document.getElementById('screen-gender')?.classList.contains('active')) {
+      showScreen('screen-welcome');
+      return;
+    }
+    if (document.getElementById('screen-permissions')?.classList.contains('active') && t.closest('[data-next="screen-gender"]')) {
+      showScreen('screen-gender');
+      return;
+    }
+    const genderBtn = t.closest('.option-btn[data-gender]');
+    if (genderBtn && document.getElementById('screen-gender')?.classList.contains('active')) {
+      document.querySelectorAll('.option-btn[data-gender]').forEach(b => b.classList.remove('selected'));
+      genderBtn.classList.add('selected');
+      state.gender = genderBtn.dataset.gender;
+      showScreen('screen-permissions');
+      return;
+    }
+    if (t.closest('#btn-allow-permissions')) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(tr => tr.stop());
+        state.permissionsGranted = true;
+      } catch (err) {
+        console.warn('Camera access denied:', err);
+        state.permissionsGranted = false;
+      }
+      state.onboarded = true;
+      saveState();
+      showScreen('screen-main');
+      setupMainApp();
+      setupAuth();
+      fetchWeather();
+    }
   });
-
-  document.querySelector('[data-next="screen-welcome"]')?.addEventListener('click', () => showScreen('screen-welcome'));
-  document.querySelector('#screen-permissions [data-next="screen-gender"]')?.addEventListener('click', () => showScreen('screen-gender'));
 }
 
 // ─── Main App ──────────────────────────────────────────────────────────
+let mainAppListenersBound = false;
+
 function setupMainApp() {
-  setupNavTabs();
-  setupCloset();
-  setupAddItem();
-  setupOutfit();
-  setupSettings();
+  if (!mainAppListenersBound) {
+    mainAppListenersBound = true;
+    setupNavTabs();
+    setupCloset();
+    setupAddItem();
+    setupOutfit();
+    setupSettings();
+  }
   renderCloset();
-  fetchWeather(); // Load weather for outfit suggestions
+  fetchWeather();
+  if (outfitMode === 'manual' && document.querySelector('.nav-tab[data-tab="outfit"]')?.classList.contains('active')) {
+    renderManualOutfit();
+  }
 }
 
 function setupNavTabs() {
@@ -968,63 +1154,62 @@ function renderOutfit(outfit) {
 // ─── Auth ──────────────────────────────────────────────────────────────
 let authMode = 'signin'; // 'signin' | 'signup'
 
-function setupAuth() {
+async function refreshAuthUI() {
   const accountSection = document.getElementById('account-section');
   const loggedOut = document.getElementById('account-logged-out');
   const loggedIn = document.getElementById('account-logged-in');
   const accountEmail = document.getElementById('account-email');
-
   if (!accountSection) return;
 
-  const updateAccountUI = async () => {
-    const configured = window.OutfitAuth?.isConfigured?.();
-    accountSection.style.display = configured ? 'block' : 'none';
-    if (!configured) return;
+  const configured = window.OutfitAuth?.isConfigured?.();
+  accountSection.style.display = configured ? 'block' : 'none';
+  if (!configured) return;
 
-    const session = await window.OutfitAuth.getSession();
-    if (session?.user) {
-      loggedOut.style.display = 'none';
-      loggedIn.style.display = 'block';
-      accountEmail.textContent = session.user.email;
-    } else {
-      loggedOut.style.display = 'block';
-      loggedIn.style.display = 'none';
-    }
-  };
+  const session = await window.OutfitAuth.getSession();
+  if (session?.user) {
+    loggedOut.style.display = 'none';
+    loggedIn.style.display = 'block';
+    accountEmail.textContent = session.user.email;
+  } else {
+    loggedOut.style.display = 'block';
+    loggedIn.style.display = 'none';
+  }
+}
 
-  document.getElementById('btn-open-auth')?.addEventListener('click', () => openAuthModal('signin'));
-  document.getElementById('btn-logout')?.addEventListener('click', async () => {
-    await window.OutfitAuth?.signOut?.();
-    updateAccountUI();
-  });
+function setupAuth() {
+  if (!document.getElementById('account-section')) return;
 
-  document.getElementById('btn-settings')?.addEventListener('click', updateAccountUI);
+  if (!window.__opAuthSetup) {
+    window.__opAuthSetup = true;
+    document.getElementById('btn-open-auth')?.addEventListener('click', () => openAuthModal('signin'));
+    document.getElementById('btn-logout')?.addEventListener('click', async () => {
+      await window.OutfitAuth?.signOut?.();
+      refreshAuthUI();
+    });
+    document.getElementById('btn-close-auth')?.addEventListener('click', () => {
+      document.getElementById('modal-auth').classList.remove('active');
+    });
+    document.getElementById('btn-auth-submit')?.addEventListener('click', handleAuthSubmit);
+    document.getElementById('btn-auth-switch')?.addEventListener('click', () => {
+      authMode = authMode === 'signin' ? 'signup' : 'signin';
+      updateAuthModal();
+    });
 
-  document.getElementById('btn-close-auth')?.addEventListener('click', () => {
-    document.getElementById('modal-auth').classList.remove('active');
-  });
-
-  document.getElementById('btn-auth-submit')?.addEventListener('click', handleAuthSubmit);
-  document.getElementById('btn-auth-switch')?.addEventListener('click', () => {
-    authMode = authMode === 'signin' ? 'signup' : 'signin';
-    updateAuthModal();
-  });
-
-  window.OutfitAuth?.onAuthChange?.(async (event, session) => {
-    updateAccountUI();
-    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user && typeof renderCloset === 'function') {
-      const cloudData = await loadFromCloud();
-      if (cloudData && Object.keys(cloudData).length > 0) {
-        state = { ...DEFAULT_DATA, ...cloudData, settings: { ...DEFAULT_DATA.settings, ...cloudData?.settings } };
-        saveState();
-        renderCloset();
-      } else {
-        saveState(); // Upload local to cloud
+    window.OutfitAuth?.onAuthChange?.(async (event, session) => {
+      refreshAuthUI();
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user && typeof renderCloset === 'function') {
+        const cloudData = await loadFromCloud();
+        if (cloudData && Object.keys(cloudData).length > 0) {
+          state = { ...DEFAULT_DATA, ...cloudData, settings: { ...DEFAULT_DATA.settings, ...cloudData?.settings } };
+          saveState();
+          renderCloset();
+        } else {
+          saveState();
+        }
       }
-    }
-  });
-
-  updateAccountUI();
+    });
+  }
+  refreshAuthUI();
 }
 
 function openAuthModal(mode) {
@@ -1078,7 +1263,7 @@ async function handleAuthSubmit() {
       }
       saveState();
       if (typeof renderCloset === 'function') renderCloset();
-      setupAuth();
+      void refreshAuthUI();
     }
   } catch (e) {
     errEl.textContent = e?.message || 'Something went wrong.';
@@ -1090,9 +1275,21 @@ async function handleAuthSubmit() {
 // ─── Settings ──────────────────────────────────────────────────────────
 function setupSettings() {
   document.getElementById('btn-settings')?.addEventListener('click', () => {
+    refreshProfilesUI();
+    void refreshAuthUI();
     document.getElementById('setting-laundry-reminder').checked = state.settings.laundryReminder;
     document.getElementById('setting-laundry-days').value = state.settings.laundryDays;
     document.getElementById('modal-settings').classList.add('active');
+  });
+  document.getElementById('profile-switcher')?.addEventListener('change', (e) => {
+    void switchToProfile(e.target.value);
+  });
+  document.getElementById('btn-profile-add')?.addEventListener('click', () => {
+    void addProfile();
+  });
+  document.getElementById('btn-profile-rename')?.addEventListener('click', renameActiveProfile);
+  document.getElementById('btn-profile-delete')?.addEventListener('click', () => {
+    void deleteActiveProfile();
   });
   document.getElementById('btn-close-settings')?.addEventListener('click', () => {
     state.settings.laundryReminder = document.getElementById('setting-laundry-reminder').checked;

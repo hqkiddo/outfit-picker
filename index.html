@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Outfit Picker – Your Personal Stylist</title>
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="stylesheet" href="styles.css?v=5">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -139,9 +139,11 @@
             <button type="button" class="btn-small" id="btn-tryon-upload-photo">Upload photo</button>
             <button type="button" class="btn-small" id="btn-tryon-clear-photo" style="display:none;">Clear photo</button>
           </div>
-          <div class="mannequin-stage" id="mannequin-stage">
-            <div class="mannequin-base" id="mannequin-base" aria-hidden="true"></div>
-            <div class="mannequin-layers" id="mannequin-layers"></div>
+          <div class="mannequin-scene">
+            <div class="mannequin-stage" id="mannequin-stage">
+              <div class="mannequin-base" id="mannequin-base" aria-hidden="true"></div>
+              <div class="mannequin-layers" id="mannequin-layers"></div>
+            </div>
           </div>
           <div class="manual-slots" id="manual-slots"></div>
         </div>
@@ -244,6 +246,18 @@
     <div id="modal-settings" class="modal">
       <div class="modal-content">
         <h2>Settings</h2>
+        <div id="profiles-section" class="account-section profiles-section">
+          <h3>Profiles on this device</h3>
+          <p class="account-hint">Separate closets per person or account. Switching profiles signs you out of sync so you can sign in with a different email.</p>
+          <label class="profile-switch-label">Active profile
+            <select id="profile-switcher" class="profile-switcher" aria-label="Choose profile"></select>
+          </label>
+          <div class="profile-actions">
+            <button type="button" class="btn-small" id="btn-profile-add">Add profile</button>
+            <button type="button" class="btn-small" id="btn-profile-rename">Rename</button>
+            <button type="button" class="btn-small profile-delete" id="btn-profile-delete" style="display:none;">Delete</button>
+          </div>
+        </div>
         <div id="account-section" class="account-section">
           <h3>Account</h3>
           <div id="account-logged-out">
@@ -276,6 +290,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="auth.js"></script>
   <script src="sync.js"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
