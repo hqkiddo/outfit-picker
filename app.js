@@ -60,7 +60,11 @@ const DEFAULT_DATA = {
     laundryDays: 3,
     sidebarRight: false,
     tryOnPhoto: null, // base64 portrait for try-on
-    tryOnUseMannequin: true // false = use tryOnPhoto as base
+    tryOnUseMannequin: true, // false = use tryOnPhoto as base
+    /** Vertical offset in px on the try-on figure (positive = down). */
+    tryOnLayerNudge: {
+      dress: 0, top: 0, bottom: 0, outerwear: 0, shoes: 0, accessory: 0
+    }
   },
   weather: null // { tempC, condition, location, updatedAt }
 };
@@ -73,6 +77,21 @@ const CATEGORY_ICONS = { top: '👕', bottom: '👖', dress: '👗', outerwear: 
 const MANNEQUIN_SVG = `<svg viewBox="0 0 100 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="mg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#f2ebe6"/><stop offset="45%" style="stop-color:#ddd2cc"/><stop offset="100%" style="stop-color:#b8ada8"/></linearGradient><radialGradient id="mh" cx="35%" cy="30%" r="65%"><stop offset="0%" style="stop-color:#fff;stop-opacity:0.5"/><stop offset="100%" style="stop-color:#fff;stop-opacity:0"/></radialGradient></defs><ellipse cx="50" cy="26" rx="20" ry="23" fill="url(#mg)"/><ellipse cx="50" cy="26" rx="20" ry="23" fill="url(#mh)"/><path d="M50 48 L28 60 L22 108 L34 112 L38 78 L42 128 L24 198 L38 204 L50 142 L62 204 L76 198 L58 128 L62 78 L66 112 L78 108 L72 60 Z" fill="url(#mg)" stroke="#a89892" stroke-width="0.4"/><path d="M50 48 L28 60 L22 108 L34 112 L38 78 L42 128 L24 198 L38 204 L50 142 L62 204 L76 198 L58 128 L62 78 L66 112 L78 108 L72 60 Z" fill="url(#mh)" opacity="0.35"/></svg>`;
 
 const MANUAL_SLOT_ORDER = ['dress', 'top', 'bottom', 'outerwear', 'shoes', 'accessory'];
+
+const TRYON_NUDGE_STEP = 8;
+const TRYON_NUDGE_MAX = 120;
+
+function mergeAppSettings(base, patch) {
+  const s = { ...base, ...patch };
+  s.tryOnLayerNudge = { ...base.tryOnLayerNudge, ...(patch?.tryOnLayerNudge || {}) };
+  return s;
+}
+
+function getTryOnNudge(cat) {
+  const o = state.settings.tryOnLayerNudge;
+  if (!o || typeof o[cat] !== 'number' || Number.isNaN(o[cat])) return 0;
+  return Math.max(-TRYON_NUDGE_MAX, Math.min(TRYON_NUDGE_MAX, o[cat]));
+}
 
 let outfitMode = 'auto'; // 'auto' | 'manual'
 let manualPicks = { dress: -1, top: -1, bottom: -1, outerwear: -1, shoes: -1, accessory: -1 };
@@ -145,7 +164,7 @@ async function hydrateFromCloudIfLoggedIn() {
   if (!session?.user) return;
   const cloudData = await loadFromCloud();
   if (cloudData && Object.keys(cloudData).length > 0) {
-    state = { ...DEFAULT_DATA, ...cloudData, settings: { ...DEFAULT_DATA.settings, ...cloudData?.settings } };
+    state = { ...DEFAULT_DATA, ...cloudData, settings: mergeAppSettings(DEFAULT_DATA.settings, cloudData?.settings) };
     saveState();
     if (typeof renderCloset === 'function') renderCloset();
   } else {
@@ -273,7 +292,7 @@ function loadState() {
     const stored = localStorage.getItem(getProfileStorageKey(activeProfileId));
     if (stored) {
       const parsed = JSON.parse(stored);
-      state = { ...DEFAULT_DATA, ...parsed, settings: { ...DEFAULT_DATA.settings, ...parsed?.settings } };
+      state = { ...DEFAULT_DATA, ...parsed, settings: mergeAppSettings(DEFAULT_DATA.settings, parsed?.settings) };
     } else {
       state = { ...DEFAULT_DATA };
     }
@@ -622,6 +641,57 @@ function readFileAsDataURL(file) {
   });
 }
 
+function mimeFromDataUrl(dataUrl) {
+  const m = /^data:([^;,]+)/.exec(dataUrl || '');
+  return m && m[1] === 'image/png' ? 'image/png' : 'image/jpeg';
+}
+
+/** @param {string} dataUrl @param {'rotate90' | 'flipH'} mode */
+function transformImageDataUrl(dataUrl, mode) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      if (!w || !h) {
+        reject(new Error('empty image'));
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      let cw = w;
+      let ch = h;
+      if (mode === 'rotate90') {
+        cw = h;
+        ch = w;
+      }
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('no canvas'));
+        return;
+      }
+      if (mode === 'rotate90') {
+        ctx.translate(cw, 0);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(img, 0, 0);
+      } else {
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0);
+      }
+      const mime = mimeFromDataUrl(dataUrl);
+      if (mime === 'image/png') {
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        resolve(canvas.toDataURL('image/jpeg', 0.92));
+      }
+    };
+    img.onerror = () => reject(new Error('image load failed'));
+    img.src = dataUrl;
+  });
+}
+
 function getAddQuantity() {
   const el = document.getElementById('item-quantity');
   const n = Math.floor(+(el?.value ?? 1) || 1);
@@ -671,6 +741,10 @@ function renderPendingBatch() {
       <button type="button" class="pending-remove" data-pid="${p.id}" aria-label="Remove">&times;</button>
       ${p.processing ? '<span class="pending-processing" title="Removing background">✨</span>' : ''}
       <img src="${p.imageData}" alt="">
+      ${p.processing ? '' : `<div class="pending-thumb-tools">
+        <button type="button" class="pending-tool pending-rotate" data-pid="${p.id}" title="Rotate 90° clockwise" aria-label="Rotate 90 degrees">↻</button>
+        <button type="button" class="pending-tool pending-flip" data-pid="${p.id}" title="Flip horizontally (mirror)" aria-label="Flip horizontally">⇄</button>
+      </div>`}
     </div>`).join('');
 
   wrap.querySelectorAll('.pending-remove').forEach((btn) => {
@@ -679,6 +753,37 @@ function renderPendingBatch() {
       pendingImages = pendingImages.filter((x) => x.id !== pid);
       renderPendingBatch();
       updateRemoveBgRow();
+    });
+  });
+
+  wrap.querySelectorAll('.pending-rotate').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const pid = btn.getAttribute('data-pid');
+      const entry = pendingImages.find((x) => x.id === pid);
+      if (!entry || entry.processing) return;
+      void transformImageDataUrl(entry.imageData, 'rotate90')
+        .then((url) => {
+          entry.imageData = url;
+          renderPendingBatch();
+          updateRemoveBgRow();
+        })
+        .catch((e) => console.warn('Rotate failed:', e));
+    });
+  });
+  wrap.querySelectorAll('.pending-flip').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const pid = btn.getAttribute('data-pid');
+      const entry = pendingImages.find((x) => x.id === pid);
+      if (!entry || entry.processing) return;
+      void transformImageDataUrl(entry.imageData, 'flipH')
+        .then((url) => {
+          entry.imageData = url;
+          renderPendingBatch();
+          updateRemoveBgRow();
+        })
+        .catch((e) => console.warn('Flip failed:', e));
     });
   });
 }
@@ -1124,9 +1229,11 @@ function renderMannequinLayers() {
   const dressOn = manualPicks.dress >= 0;
   const parts = [];
 
-  const pushLayer = (cls, item) => {
+  const pushLayer = (cls, item, catKey) => {
     if (!item?.imageData) return;
-    parts.push(`<img class="layer-piece ${cls}" src="${item.imageData}" alt="">`);
+    const ny = getTryOnNudge(catKey);
+    const style = ny !== 0 ? ` style="--nudge:${ny}px"` : '';
+    parts.push(`<img class="layer-piece ${cls}" src="${item.imageData}" alt=""${style}>`);
   };
 
   const itemAt = (cat) => {
@@ -1135,14 +1242,14 @@ function renderMannequinLayers() {
     return i >= 0 ? items[i] : null;
   };
 
-  pushLayer('layer-shoes', itemAt('shoes'));
-  if (dressOn) pushLayer('layer-dress', itemAt('dress'));
+  pushLayer('layer-shoes', itemAt('shoes'), 'shoes');
+  if (dressOn) pushLayer('layer-dress', itemAt('dress'), 'dress');
   else {
-    pushLayer('layer-bottom', itemAt('bottom'));
-    pushLayer('layer-top', itemAt('top'));
+    pushLayer('layer-bottom', itemAt('bottom'), 'bottom');
+    pushLayer('layer-top', itemAt('top'), 'top');
   }
-  pushLayer('layer-outer', itemAt('outerwear'));
-  pushLayer('layer-accessory', itemAt('accessory'));
+  pushLayer('layer-outer', itemAt('outerwear'), 'outerwear');
+  pushLayer('layer-accessory', itemAt('accessory'), 'accessory');
 
   wrap.innerHTML = parts.join('');
 }
@@ -1167,6 +1274,11 @@ function renderManualSlots() {
           <div class="manual-slot-preview">${preview}</div>
           <span class="swipe-hint-side">Swipe or arrows · dress OR top+bottom</span>
         </div>
+        <div class="manual-slot-nudge" title="Move this piece on the figure (higher or lower)">
+          <span class="nudge-mini-label">Move</span>
+          <button type="button" class="btn-small manual-nudge" data-cat="${cat}" data-dir="-1" aria-label="Move piece up">▲</button>
+          <button type="button" class="btn-small manual-nudge" data-cat="${cat}" data-dir="1" aria-label="Move piece down">▼</button>
+        </div>
         <div class="manual-slot-arrows">
           <button type="button" class="btn-small manual-prev" data-cat="${cat}" aria-label="Previous">◀</button>
           <button type="button" class="btn-small manual-next" data-cat="${cat}" aria-label="Next">▶</button>
@@ -1174,6 +1286,21 @@ function renderManualSlots() {
       </div>`;
   }).join('');
 
+  host.querySelectorAll('.manual-nudge').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const cat = btn.dataset.cat;
+      const dir = +(btn.dataset.dir || 0);
+      if (!cat || !dir) return;
+      if (!state.settings.tryOnLayerNudge) {
+        state.settings.tryOnLayerNudge = { ...DEFAULT_DATA.settings.tryOnLayerNudge };
+      }
+      const cur = getTryOnNudge(cat);
+      const next = Math.max(-TRYON_NUDGE_MAX, Math.min(TRYON_NUDGE_MAX, cur + dir * TRYON_NUDGE_STEP));
+      state.settings.tryOnLayerNudge[cat] = next;
+      saveState();
+      renderMannequinLayers();
+    });
+  });
   host.querySelectorAll('.manual-prev').forEach(btn => {
     btn.addEventListener('click', () => {
       cycleManualPick(btn.dataset.cat, -1);
@@ -1322,7 +1449,7 @@ function setupAuth() {
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user && typeof renderCloset === 'function') {
         const cloudData = await loadFromCloud();
         if (cloudData && Object.keys(cloudData).length > 0) {
-          state = { ...DEFAULT_DATA, ...cloudData, settings: { ...DEFAULT_DATA.settings, ...cloudData?.settings } };
+          state = { ...DEFAULT_DATA, ...cloudData, settings: mergeAppSettings(DEFAULT_DATA.settings, cloudData?.settings) };
           saveState();
           renderCloset();
         } else {
@@ -1381,7 +1508,7 @@ async function handleAuthSubmit() {
       document.getElementById('modal-auth').classList.remove('active');
       const cloudData = await loadFromCloud();
       if (cloudData && Object.keys(cloudData).length > 0) {
-        state = { ...DEFAULT_DATA, ...cloudData, settings: { ...DEFAULT_DATA.settings, ...cloudData?.settings } };
+        state = { ...DEFAULT_DATA, ...cloudData, settings: mergeAppSettings(DEFAULT_DATA.settings, cloudData?.settings) };
       }
       saveState();
       if (typeof renderCloset === 'function') renderCloset();
