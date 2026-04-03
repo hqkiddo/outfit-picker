@@ -622,19 +622,26 @@ function readFileAsDataURL(file) {
   });
 }
 
+function getAddQuantity() {
+  const el = document.getElementById('item-quantity');
+  const n = Math.floor(+(el?.value ?? 1) || 1);
+  return Math.max(1, Math.min(30, n));
+}
+
 function renderPendingBatch() {
   const wrap = document.getElementById('pending-batch');
   const saveBtn = document.getElementById('btn-save-item');
   const ph = document.getElementById('camera-placeholder');
   if (!wrap || !saveBtn) return;
 
+  const q = getAddQuantity();
   if (pendingImages.length === 0) {
     wrap.innerHTML = '';
     wrap.style.display = 'none';
     document.getElementById('remove-bg-row').style.display = 'none';
     if (manualAddNoPhoto) {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save';
+      saveBtn.textContent = q <= 1 ? 'Save' : `Save ${q} items`;
     } else {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Save';
@@ -648,10 +655,11 @@ function renderPendingBatch() {
 
   wrap.style.display = 'grid';
   const busy = pendingImages.some((p) => p.processing);
+  const totalSlots = pendingImages.length * q;
   saveBtn.disabled = busy;
   saveBtn.textContent = busy
     ? 'Wait…'
-    : (pendingImages.length === 1 ? 'Save' : `Save ${pendingImages.length} items`);
+    : (totalSlots <= 1 ? 'Save' : `Save ${totalSlots} items`);
 
   if (ph) {
     ph.style.display = 'block';
@@ -715,6 +723,9 @@ function setupAddItem() {
   document.getElementById('file-input')?.addEventListener('change', handleFileSelect);
   document.getElementById('btn-add-manual')?.addEventListener('click', startManualAdd);
   document.getElementById('btn-remove-bg')?.addEventListener('click', removeBackground);
+  document.getElementById('item-quantity')?.addEventListener('input', () => {
+    renderPendingBatch();
+  });
 }
 
 function openAddModal() {
@@ -731,6 +742,8 @@ function openAddModal() {
   document.getElementById('remove-bg-status').textContent = '';
   document.getElementById('btn-capture').style.display = 'inline-block';
   document.getElementById('btn-capture-now').style.display = 'none';
+  const qty = document.getElementById('item-quantity');
+  if (qty) qty.value = '1';
   document.getElementById('modal-add').classList.add('active');
   stopCamera();
 }
@@ -862,32 +875,38 @@ function saveItem() {
   const category = document.getElementById('item-category')?.value || 'top';
   const status = document.getElementById('item-status')?.value || 'clean';
   const favorite = document.getElementById('item-favorite')?.checked ?? false;
+  const copies = getAddQuantity();
 
   if (pendingImages.some((p) => p.processing)) return;
 
   if (manualAddNoPhoto && pendingImages.length === 0) {
-    state.clothes.push({
-      id: crypto.randomUUID(),
-      imageData: null,
-      category,
-      status,
-      laundrySince: status === 'laundry' ? new Date().toISOString() : null,
-      favorite,
-      lastWorn: null
-    });
-  } else {
-    if (pendingImages.length === 0) return;
     const ts = status === 'laundry' ? new Date().toISOString() : null;
-    pendingImages.forEach((p) => {
+    for (let c = 0; c < copies; c++) {
       state.clothes.push({
         id: crypto.randomUUID(),
-        imageData: p.imageData,
+        imageData: null,
         category,
         status,
         laundrySince: ts,
         favorite,
         lastWorn: null
       });
+    }
+  } else {
+    if (pendingImages.length === 0) return;
+    const ts = status === 'laundry' ? new Date().toISOString() : null;
+    pendingImages.forEach((p) => {
+      for (let c = 0; c < copies; c++) {
+        state.clothes.push({
+          id: crypto.randomUUID(),
+          imageData: p.imageData,
+          category,
+          status,
+          laundrySince: ts,
+          favorite,
+          lastWorn: null
+        });
+      }
     });
   }
 

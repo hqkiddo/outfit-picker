@@ -569,6 +569,17 @@ body {
   background: rgba(232, 165, 152, 0.2);
 }
 
+.tryon-3d-hint {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: rgba(232, 165, 152, 0.12);
+  border-radius: 12px;
+  border: 1px solid rgba(232, 165, 152, 0.35);
+}
+
 /* 3D try-on “studio” */
 .mannequin-scene {
   perspective: var(--perspective-scene);
@@ -1021,6 +1032,25 @@ body {
   font-size: 0.85rem;
   color: var(--text-muted);
   margin: 0 0 14px;
+}
+
+.quantity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.quantity-row input {
+  width: 72px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
 }
 
 .pending-batch {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Outfit Picker – Your Personal Stylist</title>
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=9">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -139,6 +139,9 @@
             <button type="button" class="btn-small" id="btn-tryon-upload-photo">Upload photo</button>
             <button type="button" class="btn-small" id="btn-tryon-clear-photo" style="display:none;">Clear photo</button>
           </div>
+          <p class="tryon-3d-hint" id="tryon-3d-hint">
+            <strong>3D tip:</strong> When you photograph yourself, stay in place and <strong>turn around slowly</strong> (a full, gentle spin) while the camera records or a friend takes pictures from a few sides—then upload your best full-body still. That makes the 3D-style try-on look more like you.
+          </p>
           <div class="mannequin-scene">
             <div class="mannequin-stage" id="mannequin-stage">
               <div class="mannequin-base" id="mannequin-base" aria-hidden="true"></div>
@@ -176,6 +179,10 @@
             </div>
           </div>
           <p class="batch-form-hint">Category, status, and favorite apply to <strong>all</strong> photos you add in this batch.</p>
+          <label class="quantity-row">
+            <span>Copies of <strong>each</strong> photo (identical items)</span>
+            <input type="number" id="item-quantity" min="1" max="30" value="1" aria-label="How many closet entries per photo">
+          </label>
           <label>
             Category
             <select id="item-category" aria-label="Clothing category">
@@ -292,6 +299,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="auth.js"></script>
   <script src="sync.js"></script>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>
