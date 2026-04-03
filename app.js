@@ -608,8 +608,103 @@ document.getElementById('btn-close-detail')?.addEventListener('click', () => {
 });
 
 // ─── Add Item ──────────────────────────────────────────────────────────
-let currentImageData = null;
+/** @type {{ id: string, imageData: string, processing: boolean }[]} */
+let pendingImages = [];
+let manualAddNoPhoto = false;
 let cameraStream = null;
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('read failed'));
+    r.readAsDataURL(file);
+  });
+}
+
+function renderPendingBatch() {
+  const wrap = document.getElementById('pending-batch');
+  const saveBtn = document.getElementById('btn-save-item');
+  const ph = document.getElementById('camera-placeholder');
+  if (!wrap || !saveBtn) return;
+
+  if (pendingImages.length === 0) {
+    wrap.innerHTML = '';
+    wrap.style.display = 'none';
+    document.getElementById('remove-bg-row').style.display = 'none';
+    if (manualAddNoPhoto) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+    } else {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Save';
+    }
+    if (ph && !manualAddNoPhoto) {
+      ph.style.display = 'block';
+      ph.innerHTML = '<span>📷</span><p>Take photos, or choose <strong>several images</strong> at once</p>';
+    }
+    return;
+  }
+
+  wrap.style.display = 'grid';
+  const busy = pendingImages.some((p) => p.processing);
+  saveBtn.disabled = busy;
+  saveBtn.textContent = busy
+    ? 'Wait…'
+    : (pendingImages.length === 1 ? 'Save' : `Save ${pendingImages.length} items`);
+
+  if (ph) {
+    ph.style.display = 'block';
+    ph.innerHTML = '<span>📷</span><p>Add another photo or tap Save</p>';
+  }
+
+  wrap.innerHTML = pendingImages.map((p) => `
+    <div class="pending-thumb" data-pid="${p.id}">
+      <button type="button" class="pending-remove" data-pid="${p.id}" aria-label="Remove">&times;</button>
+      ${p.processing ? '<span class="pending-processing" title="Removing background">✨</span>' : ''}
+      <img src="${p.imageData}" alt="">
+    </div>`).join('');
+
+  wrap.querySelectorAll('.pending-remove').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      const pid = ev.currentTarget.getAttribute('data-pid');
+      pendingImages = pendingImages.filter((x) => x.id !== pid);
+      renderPendingBatch();
+      updateRemoveBgRow();
+    });
+  });
+}
+
+function updateRemoveBgRow() {
+  const row = document.getElementById('remove-bg-row');
+  const processing = pendingImages.some((p) => p.processing);
+  if (!row) return;
+  row.style.display = pendingImages.length > 0 || processing ? 'flex' : 'none';
+}
+
+async function processEntryBackground(entry, indexLabel) {
+  const status = document.getElementById('remove-bg-status');
+  const row = document.getElementById('remove-bg-row');
+  entry.processing = true;
+  renderPendingBatch();
+  if (row) row.style.display = 'flex';
+  if (status && indexLabel) status.textContent = `Removing background… ${indexLabel}`;
+  try {
+    entry.imageData = await applyRemoveBackgroundFromDataUrl(entry.imageData);
+    if (status && indexLabel) status.textContent = 'Background removed.';
+  } catch (e) {
+    console.warn('Background removal failed:', e);
+    if (status) status.textContent = 'Some images could not be auto-cleaned. You can retry the last one.';
+  } finally {
+    entry.processing = false;
+    renderPendingBatch();
+    const still = pendingImages.some((p) => p.processing);
+    if (!still && status) {
+      if (pendingImages.length > 0) status.textContent = 'Background removal finished for this batch.';
+    }
+    updateRemoveBgRow();
+  }
+}
 
 function setupAddItem() {
   document.getElementById('btn-add-item')?.addEventListener('click', openAddModal);
@@ -623,14 +718,17 @@ function setupAddItem() {
 }
 
 function openAddModal() {
-  currentImageData = null;
+  pendingImages = [];
+  manualAddNoPhoto = false;
+  renderPendingBatch();
   document.getElementById('captured-image').style.display = 'none';
   document.getElementById('captured-image').src = '';
   document.getElementById('camera-placeholder').style.display = 'block';
-  document.getElementById('camera-placeholder').innerHTML = '<span>📷</span><p>Take a photo or choose a file</p>';
+  document.getElementById('camera-placeholder').innerHTML = '<span>📷</span><p>Take photos, or choose <strong>several images</strong> at once</p>';
   document.getElementById('camera-video').style.display = 'none';
   document.getElementById('btn-save-item').disabled = true;
   document.getElementById('remove-bg-row').style.display = 'none';
+  document.getElementById('remove-bg-status').textContent = '';
   document.getElementById('btn-capture').style.display = 'inline-block';
   document.getElementById('btn-capture-now').style.display = 'none';
   document.getElementById('modal-add').classList.add('active');
@@ -638,7 +736,9 @@ function openAddModal() {
 }
 
 function startManualAdd() {
-  currentImageData = null;
+  pendingImages = [];
+  manualAddNoPhoto = true;
+  renderPendingBatch();
   document.getElementById('captured-image').style.display = 'none';
   document.getElementById('captured-image').src = '';
   document.getElementById('camera-placeholder').style.display = 'block';
@@ -646,6 +746,7 @@ function startManualAdd() {
   document.getElementById('camera-video').style.display = 'none';
   document.getElementById('remove-bg-row').style.display = 'none';
   document.getElementById('btn-save-item').disabled = false;
+  document.getElementById('btn-save-item').textContent = 'Save';
   document.getElementById('btn-capture').style.display = 'inline-block';
   document.getElementById('btn-capture-now').style.display = 'none';
   stopCamera();
@@ -685,46 +786,46 @@ function stopCamera() {
 document.getElementById('camera-video')?.addEventListener('click', captureFromVideo);
 document.getElementById('btn-capture-now')?.addEventListener('click', captureFromVideo);
 
-function showImageWithRemoveBg() {
-  document.getElementById('remove-bg-row').style.display = 'flex';
-  document.getElementById('remove-bg-status').textContent = '';
-}
-
 function captureFromVideo() {
+  manualAddNoPhoto = false;
   const video = document.getElementById('camera-video');
   if (!video.srcObject || !video.videoWidth) return;
   const canvas = document.createElement('canvas');
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
-  currentImageData = canvas.toDataURL('image/jpeg', 0.8);
-  document.getElementById('captured-image').src = currentImageData;
-  document.getElementById('captured-image').style.display = 'block';
-  document.getElementById('camera-placeholder').style.display = 'none';
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+  const entry = { id: crypto.randomUUID(), imageData: dataUrl, processing: true };
+  pendingImages.push(entry);
   video.style.display = 'none';
-  document.getElementById('btn-save-item').disabled = false;
-  showImageWithRemoveBg();
   stopCamera();
-  void runAutoRemoveBgAfterCapture();
+  renderPendingBatch();
+  const n = pendingImages.length;
+  void processEntryBackground(entry, n > 1 ? `(${n} in batch)` : '(first time may be slow)');
 }
 
 function handleFileSelect(e) {
-  const file = e.target.files?.[0];
-  if (!file || !file.type.startsWith('image/')) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    currentImageData = reader.result;
-    document.getElementById('captured-image').src = currentImageData;
-    document.getElementById('captured-image').style.display = 'block';
-    document.getElementById('camera-placeholder').style.display = 'none';
-    document.getElementById('camera-video').style.display = 'none';
-    document.getElementById('btn-save-item').disabled = false;
-    showImageWithRemoveBg();
-    stopCamera();
-    void runAutoRemoveBgAfterCapture();
-  };
-  reader.readAsDataURL(file);
+  const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'));
   e.target.value = '';
+  if (!files.length) return;
+  manualAddNoPhoto = false;
+  document.getElementById('camera-video').style.display = 'none';
+  stopCamera();
+  void (async () => {
+    const total = files.length;
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const dataUrl = await readFileAsDataURL(files[i]);
+        const entry = { id: crypto.randomUUID(), imageData: dataUrl, processing: true };
+        pendingImages.push(entry);
+        renderPendingBatch();
+        const label = total > 1 ? `(${i + 1} of ${total})` : '(first time may be slow)';
+        await processEntryBackground(entry, label);
+      } catch (err) {
+        console.warn('Could not read file:', err);
+      }
+    }
+  })();
 }
 
 async function applyRemoveBackgroundFromDataUrl(dataUrl) {
@@ -738,42 +839,22 @@ async function applyRemoveBackgroundFromDataUrl(dataUrl) {
   });
 }
 
-async function runAutoRemoveBgAfterCapture() {
-  if (!currentImageData) return;
-  const status = document.getElementById('remove-bg-status');
-  const btn = document.getElementById('btn-remove-bg');
-  document.getElementById('remove-bg-row').style.display = 'flex';
-  btn.disabled = true;
-  status.textContent = 'Removing background… (first time can take a minute)';
-  try {
-    const result = await applyRemoveBackgroundFromDataUrl(currentImageData);
-    currentImageData = result;
-    document.getElementById('captured-image').src = currentImageData;
-    status.textContent = 'Background removed automatically.';
-  } catch (e) {
-    console.warn('Auto background removal failed:', e);
-    status.textContent = 'Could not remove background. Use Retry or save as-is.';
-  } finally {
-    btn.disabled = false;
-  }
-}
-
 async function removeBackground() {
-  if (!currentImageData) return;
+  const last = pendingImages[pendingImages.length - 1];
+  if (!last || last.processing) return;
   const btn = document.getElementById('btn-remove-bg');
   const status = document.getElementById('remove-bg-status');
-  btn.disabled = true;
-  status.textContent = 'Removing…';
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = 'Removing…';
   try {
-    const result = await applyRemoveBackgroundFromDataUrl(currentImageData);
-    currentImageData = result;
-    document.getElementById('captured-image').src = currentImageData;
-    status.textContent = 'Done.';
+    last.imageData = await applyRemoveBackgroundFromDataUrl(last.imageData);
+    renderPendingBatch();
+    if (status) status.textContent = 'Done.';
   } catch (e) {
     console.warn('Background removal failed:', e);
-    status.textContent = 'Failed – save as-is or try again.';
+    if (status) status.textContent = 'Failed – try again or save as-is.';
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -782,15 +863,34 @@ function saveItem() {
   const status = document.getElementById('item-status')?.value || 'clean';
   const favorite = document.getElementById('item-favorite')?.checked ?? false;
 
-  state.clothes.push({
-    id: crypto.randomUUID(),
-    imageData: currentImageData,
-    category,
-    status,
-    laundrySince: status === 'laundry' ? new Date().toISOString() : null,
-    favorite,
-    lastWorn: null
-  });
+  if (pendingImages.some((p) => p.processing)) return;
+
+  if (manualAddNoPhoto && pendingImages.length === 0) {
+    state.clothes.push({
+      id: crypto.randomUUID(),
+      imageData: null,
+      category,
+      status,
+      laundrySince: status === 'laundry' ? new Date().toISOString() : null,
+      favorite,
+      lastWorn: null
+    });
+  } else {
+    if (pendingImages.length === 0) return;
+    const ts = status === 'laundry' ? new Date().toISOString() : null;
+    pendingImages.forEach((p) => {
+      state.clothes.push({
+        id: crypto.randomUUID(),
+        imageData: p.imageData,
+        category,
+        status,
+        laundrySince: ts,
+        favorite,
+        lastWorn: null
+      });
+    });
+  }
+
   saveState();
   renderCloset();
   closeAddModal();

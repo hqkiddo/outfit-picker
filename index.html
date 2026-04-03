@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Outfit Picker – Your Personal Stylist</title>
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=7">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -153,27 +153,29 @@
     <!-- ADD ITEM MODAL -->
     <div id="modal-add" class="modal">
       <div class="modal-content">
-        <h2>Add Clothing Item</h2>
+        <h2>Add clothing</h2>
         <div class="add-form">
           <div class="camera-preview" id="camera-preview">
             <video id="camera-video" autoplay playsinline style="display:none;"></video>
             <div id="camera-placeholder" class="camera-placeholder">
               <span>📷</span>
-              <p>Take a photo or choose a file</p>
+              <p>Take photos, or choose <strong>several images</strong> at once</p>
             </div>
-            <img id="captured-image" alt="Captured" style="display:none;">
+            <div id="pending-batch" class="pending-batch" style="display:none;" aria-live="polite"></div>
+            <img id="captured-image" alt="" style="display:none;" aria-hidden="true">
             <div id="remove-bg-row" class="remove-bg-row" style="display:none;">
               <span id="remove-bg-status" class="remove-bg-status"></span>
-              <button class="btn-small" id="btn-remove-bg" type="button">Retry remove bg</button>
+              <button class="btn-small" id="btn-remove-bg" type="button">Retry last image</button>
             </div>
             <div class="camera-controls">
-              <input type="file" id="file-input" accept="image/*" style="display:none;">
+              <input type="file" id="file-input" accept="image/*" multiple style="display:none;">
               <button class="btn-small" id="btn-capture">Start Camera</button>
               <button class="btn-small" id="btn-capture-now" style="display:none;">Capture Photo</button>
-              <button class="btn-small" id="btn-upload">Upload Image</button>
+              <button class="btn-small" id="btn-upload">Upload images</button>
               <button class="btn-small btn-manual-add" id="btn-add-manual">Add without photo</button>
             </div>
           </div>
+          <p class="batch-form-hint">Category, status, and favorite apply to <strong>all</strong> photos you add in this batch.</p>
           <label>
             Category
             <select id="item-category" aria-label="Clothing category">
@@ -290,6 +292,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="auth.js"></script>
   <script src="sync.js"></script>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
