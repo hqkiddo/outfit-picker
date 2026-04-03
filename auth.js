@@ -17,8 +17,20 @@
   window.OutfitAuth = {
     isConfigured() {
       const cfg = window.OUTFIT_PICKER_CONFIG;
-      if (!cfg?.supabaseUrl || !cfg?.supabaseAnonKey) return false;
-      if (cfg.supabaseUrl.includes('your-project') || cfg.supabaseAnonKey.includes('your-anon')) return false;
+      if (!cfg) return false;
+      const url = String(cfg.supabaseUrl ?? '').trim();
+      const key = String(cfg.supabaseAnonKey ?? '').trim();
+      if (!url || !key) return false;
+      let hostname = '';
+      try {
+        hostname = new URL(url).hostname;
+      } catch {
+        return false;
+      }
+      if (hostname === 'your-project.supabase.co') return false;
+      if (key === 'your-anon-key') return false;
+      // Supabase anon keys are JWT-style strings; placeholders are short
+      if (key.length < 80) return false;
       return true;
     },
 

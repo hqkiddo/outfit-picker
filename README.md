@@ -8,8 +8,9 @@ To enable login and cloud sync:
 
 1. Create a free project at [supabase.com](https://supabase.com)
 2. In Supabase Dashboard → **SQL Editor**, run the contents of `supabase-schema.sql` to create the `closet_data` table
-3. In Supabase Dashboard → **Settings** → **API**, copy your project URL and anon (public) key
-4. Edit `config.js` and replace the placeholder values with your URL and anon key
+3. In Supabase Dashboard → **Settings** → **API**, copy your project URL and anon (public) key (a long string — never use the `service_role` secret in the browser)
+4. Edit `config.js` in this repo and replace both placeholder values with your URL and anon key
+5. **Important for hosting:** commit and push `config.js`. Your live site loads `/config.js` from the deployed files — until you deploy real values, sign-in will show “not configured.”
 
 Your closet will sync when you sign in. Without Supabase configured, the app works locally only.
 
@@ -26,7 +27,8 @@ Your closet will sync when you sign in. Without Supabase configured, the app wor
    - **Build command:** (leave empty)
    - **Build output directory:** `/` (or leave blank)
 6. Click **Save and Deploy** – your site will be at `https://outfit-picker.pages.dev` (or a similar URL)
-7. Optional: Customize the subdomain in **Custom domains**
+7. Put your Supabase URL and **anon** key in `config.js`, **commit and push** to `main`, and wait for the automatic redeploy — then sign-in works on the live URL
+8. Optional: Customize the subdomain in **Custom domains**
 
 ### Option 2: Netlify
 

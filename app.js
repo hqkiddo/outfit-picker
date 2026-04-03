@@ -1593,7 +1593,7 @@ function syncAuthModalSupabaseState() {
     } else {
       notice.style.display = 'block';
       notice.innerHTML =
-        'To sync across devices, copy <code>config.example.js</code> to <code>config.js</code> and set your Supabase <strong>Project URL</strong> and <strong>anon key</strong> (Dashboard → Settings → API), then reload. You can still fill this form now; sign-in will work after config is saved.';
+        '<strong>This site is still using template Supabase values.</strong> In the <code>outfit-picker</code> repo, open <code>config.js</code> and replace <code>supabaseUrl</code> + <code>supabaseAnonKey</code> with your real <a href="https://supabase.com/dashboard/project/_/settings/api" target="_blank" rel="noopener">Project URL and anon (public) key</a> (not the service_role key). If you deploy from GitHub (e.g. Cloudflare Pages), <strong>commit and push</strong> <code>config.js</code>, wait for the deploy, then hard-refresh this page.';
     }
   }
 }
@@ -1638,8 +1638,8 @@ async function handleAuthSubmit() {
   }
 
   if (!window.OutfitAuth?.isConfigured?.()) {
-    errEl.textContent =
-      'Supabase is not configured yet. Add config.js with your project URL and anon key, reload the page, then try again.';
+    errEl.innerHTML =
+      'Supabase is not active yet: <code>config.js</code> must list your real project URL and <strong>anon</strong> key (from Supabase → Settings → API). Commit and push that file if you host from GitHub, redeploy, then reload this page.';
     errEl.style.display = 'block';
     return;
   }
