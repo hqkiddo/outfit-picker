@@ -36,7 +36,9 @@ Your closet will sync when you sign in. Without Supabase configured, the app wor
    - **Build output directory:** `/` (root)
 7. Save, then **Retry deployment** (or push an empty commit). At build time, `config.js` is generated from those variables and sign-in works after deploy.
 8. **Alternative:** skip the build command and commit a real `config.js` instead (option B above).
-9. Optional: **Custom domains**
+9. If the build **fails** with `write-config` / template `config.js`: Cloudflare needs both env vars (step 5), or a committed `config.js` that is **not** the placeholder.
+10. After deploy, open `https://YOUR-SITE.pages.dev/config.js` in the browser — you should see your real `supabase.co` URL, not `your-project`. If not, fix env/build and redeploy. Hard-refresh the app (or use a private window).
+11. Optional: **Custom domains**
 
 ### Option 2: Netlify
 

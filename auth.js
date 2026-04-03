@@ -10,7 +10,9 @@
     const cfg = window.OUTFIT_PICKER_CONFIG;
     if (!cfg?.supabaseUrl || !cfg?.supabaseAnonKey) return null;
     if (typeof window.supabase?.createClient !== 'function') return null;
-    supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    const url = String(cfg.supabaseUrl).trim();
+    const key = String(cfg.supabaseAnonKey).trim();
+    supabase = window.supabase.createClient(url, key);
     return supabase;
   }
 
@@ -29,8 +31,8 @@
       }
       if (hostname === 'your-project.supabase.co') return false;
       if (key === 'your-anon-key') return false;
-      // Supabase anon keys are JWT-style strings; placeholders are short
-      if (key.length < 80) return false;
+      // Real anon keys are long JWT-style strings; template is short
+      if (key.length < 50) return false;
       return true;
     },
 
