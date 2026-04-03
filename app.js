@@ -1408,10 +1408,18 @@ async function refreshAuthUI() {
   const loggedOut = document.getElementById('account-logged-out');
   const loggedIn = document.getElementById('account-logged-in');
   const accountEmail = document.getElementById('account-email');
+  const headerAuth = document.getElementById('btn-header-auth');
   if (!accountSection) return;
 
   const configured = window.OutfitAuth?.isConfigured?.();
   accountSection.style.display = configured ? 'block' : 'none';
+  if (headerAuth) {
+    if (!configured) {
+      headerAuth.style.display = 'none';
+    } else {
+      headerAuth.style.display = 'inline-block';
+    }
+  }
   if (!configured) return;
 
   const session = await window.OutfitAuth.getSession();
@@ -1419,9 +1427,17 @@ async function refreshAuthUI() {
     loggedOut.style.display = 'none';
     loggedIn.style.display = 'block';
     accountEmail.textContent = session.user.email;
+    if (headerAuth) {
+      headerAuth.textContent = 'Account';
+      headerAuth.setAttribute('aria-label', 'Open settings — signed in as ' + (session.user.email || 'user'));
+    }
   } else {
     loggedOut.style.display = 'block';
     loggedIn.style.display = 'none';
+    if (headerAuth) {
+      headerAuth.textContent = 'Log in / Sign up';
+      headerAuth.setAttribute('aria-label', 'Log in or create an account');
+    }
   }
 }
 
@@ -1431,6 +1447,19 @@ function setupAuth() {
   if (!window.__opAuthSetup) {
     window.__opAuthSetup = true;
     document.getElementById('btn-open-auth')?.addEventListener('click', () => openAuthModal('signin'));
+    document.getElementById('btn-header-auth')?.addEventListener('click', async () => {
+      if (!window.OutfitAuth?.isConfigured?.()) return;
+      const session = await window.OutfitAuth.getSession();
+      if (session?.user) {
+        refreshProfilesUI();
+        void refreshAuthUI();
+        document.getElementById('setting-laundry-reminder').checked = state.settings.laundryReminder;
+        document.getElementById('setting-laundry-days').value = state.settings.laundryDays;
+        document.getElementById('modal-settings')?.classList.add('active');
+      } else {
+        openAuthModal('signin');
+      }
+    });
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
       await window.OutfitAuth?.signOut?.();
       refreshAuthUI();
